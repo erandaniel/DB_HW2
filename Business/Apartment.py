@@ -1,9 +1,16 @@
 class Apartment:
-    def __init__(self, address: str=None, city: str=None, country: str=None, size: float=None) -> None:
+    def __init__(self, id: int=None, address: str=None, city: str=None, country: str=None, size: float=None) -> None:
+        self.__id = id
         self.__address = address
         self.__city = city
         self.__country = country
         self.__size = size
+
+    def get_id(self):
+        return self.__id
+        
+    def set_id(self, id):
+        self.__id = id
 
     def get_address(self):
         return self.__address
