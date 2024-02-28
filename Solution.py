@@ -54,6 +54,22 @@ class M:
         owner_id = 'owner_id'
         house_id = 'apartment_id'
 
+    class Rev:
+        TABLE_NAME = 'Reviews'
+        cid = 'customer_id'
+        hid = 'apartment_id'
+        review_date = 'review_date'
+        rating = 'rating'
+        review_text = 'review_text'
+
+    class Res:
+        TABLE_NAME = 'Reservations'
+        cid = 'customer_id'
+        hid = 'apartment_id'
+        start_date = 'start_date'
+        end_date = 'end_date'
+        total_price = 'total_price'
+
 
 def _get(query):
     try:
@@ -87,8 +103,18 @@ def _insert(query):
         raise _Ex(ReturnValue.NOT_EXISTS)
     except DatabaseException:
         raise _Ex(ReturnValue.ERROR)
+    except Exception as e:
+        raise e
     finally:
         _conn.close()
+
+    return _rows_effected, _
+
+
+def _update(_query):
+    rows_updated, _ = _insert(_query)
+    if not rows_updated:
+        raise _Ex(ReturnValue.NOT_EXISTS)
 
 
 def _delete(query):
@@ -133,22 +159,6 @@ def _result_to_apartment_obj(result: Connector.ResultSet) -> Apartment:
 
 
 # ---------------------------------- WORKING_ON_NOW ----------------------------------
-
-
-def get_apartment_owner(apartment_id: int) -> Owner:
-    _query = sql.SQL(
-        f"SELECT * FROM {M.OwnedBy.TABLE_NAME} LEFT OUTER JOIN {M.O.TABLE_NAME} ON {M.OwnedBy.owner_id} = {M.O.id} WHERE {M.OwnedBy.house_id}={{ID}}").format(
-        ID=sql.Literal(apartment_id),
-    )
-
-    try:
-        rows_effected, result = _get(_query)
-    except _Ex as e:
-        return e.error_code
-    if not rows_effected:
-        return Owner.bad_owner()
-
-    return _result_to_owner_obj(result)
 
 
 # ---------------------------------- CRUD API: ----------------------------------
@@ -321,20 +331,49 @@ def get_owner_apartments(owner_id: int) -> List[Apartment]:
     return [_result_to_owner_obj([r]) for r in result]
 
 
-############# reservation
+def get_apartment_owner(apartment_id: int) -> Owner:
+    _query = sql.SQL(
+        f"SELECT * FROM {M.OwnedBy.TABLE_NAME} LEFT OUTER JOIN {M.O.TABLE_NAME} ON {M.OwnedBy.owner_id} = {M.O.id} WHERE {M.OwnedBy.house_id}={{ID}}").format(
+        ID=sql.Literal(apartment_id),
+    )
+
+    try:
+        rows_effected, result = _get(_query)
+    except _Ex as e:
+        return e.error_code
+    if not rows_effected:
+        return Owner.bad_owner()
+
+    return _result_to_owner_obj(result)
+
 
 def customer_made_reservation(customer_id: int, apartment_id: int, start_date: date, end_date: date,
                               total_price: float) -> ReturnValue:
-    _query = f"INSERT INTO Reservations(customer_id, apartment_id, start_date, end_date, total_price) VALUES({customer_id}, {apartment_id}, {start_date}, {end_date}, {total_price})"
+    _query = sql.SQL(
+        f"INSERT INTO {M.Res.TABLE_NAME}({M.Res.cid}, {M.Res.hid}, {M.Res.start_date}, {M.Res.end_date}, {M.Res.total_price}) "
+        f"VALUES({{cid}}, {{hid}}, {{start_date}}, {{end_date}}, {{total_price}})").format(
+        cid=sql.Literal(customer_id),
+        hid=sql.Literal(apartment_id),
+        start_date=sql.Literal(start_date),
+        end_date=sql.Literal(end_date),
+        total_price=sql.Literal(total_price)
+    )
     try:
-        _insert(_query)  # TODO: make sure insert is working here
+        _insert(_query)
     except _Ex as e:
         return e.error_code
     return ReturnValue.OK
 
 
 def customer_cancelled_reservation(customer_id: int, apartment_id: int, start_date: date) -> ReturnValue:
-    _query = f"DELETE FROM Reservations WHERE customer_id={customer_id} AND apartment_id={apartment_id} AND start_date={start_date}"
+    _query = sql.SQL(
+        f"DELETE FROM {M.Res.TABLE_NAME} WHERE {M.Res.cid}={{CID}} AND {M.Res.hid}={{HID}} AND {M.Res.start_date}={{START_DATE}}"
+    ).format(
+        CID=sql.Literal(customer_id),
+        HID=sql.Literal(apartment_id),
+        START_DATE=sql.Literal(start_date),
+    )
+
     try:
         _delete(_query)
     except _Ex as e:
@@ -342,11 +381,17 @@ def customer_cancelled_reservation(customer_id: int, apartment_id: int, start_da
     return ReturnValue.OK
 
 
-############# reviewe
-
 def customer_reviewed_apartment(customer_id: int, apartment_id: int, review_date: date, rating: int,
                                 review_text: str) -> ReturnValue:
-    _query = f'INSERT INTO Reviews(customer_id ,apartment_id ,review_date ,rating ,review_text) VALUES({customer_id} ,{apartment_id} ,{review_date} ,{rating} ,{review_text})'
+    _query = sql.SQL(
+        f"INSERT INTO {M.Rev.TABLE_NAME}({M.Rev.cid}, {M.Rev.hid}, {M.Rev.review_date}, {M.Rev.rating}, {M.Rev.review_text}) "
+        f"VALUES({{cid}}, {{hid}}, {{DATE}}, {{RATING}}, {{TEXT}})").format(
+        cid=sql.Literal(customer_id),
+        hid=sql.Literal(apartment_id),
+        DATE=sql.Literal(review_date),
+        RATING=sql.Literal(rating),
+        TEXT=sql.Literal(review_text)
+    )
     try:
         _insert(_query)
     except _Ex as e:
@@ -356,12 +401,103 @@ def customer_reviewed_apartment(customer_id: int, apartment_id: int, review_date
 
 def customer_updated_review(customer_id: int, apartment_id: int, update_date: date, new_rating: int,
                             new_text: str) -> ReturnValue:
-    _query = f'UPDATE Reviews SET review_date = {update_date}, rating = {new_rating}, review_text = {new_text} WHERE customer_id = {customer_id} AND apartment_id = {apartment_id};'
+    _query = sql.SQL(
+        f"UPDATE {M.Rev.TABLE_NAME} SET "
+        f" {M.Rev.rating}={{RATING}},"
+        f" {M.Rev.review_text}={{TEXT}},"
+        f" {M.Rev.review_date}={{DATE}}"  # TODO: do we need to update time or override? and constrain update date > date 
+        f" WHERE {M.Rev.cid}={{CID}} AND {M.Rev.hid}={{HID}}"
+    ).format(
+        CID=sql.Literal(customer_id),
+        HID=sql.Literal(apartment_id),
+        DATE=sql.Literal(update_date),
+        RATING=sql.Literal(new_rating),
+        TEXT=sql.Literal(new_text)
+    )
     try:
-        _insert(_query)
+        _update(_query)
     except _Ex as e:
         return e.error_code
     return ReturnValue.OK
+
+
+def reservations_per_owner() -> List[Tuple[str, int]]:
+    _query = sql.SQL(
+        f"SELECT {M.O.TABLE_NAME}.{M.O.name}, COUNT ({M.O.id})"
+
+        f" FROM {M.Res.TABLE_NAME} "
+        f" INNER JOIN {M.OwnedBy.TABLE_NAME} "
+        f" ON {M.Res.TABLE_NAME}.{M.Res.hid} = {M.OwnedBy.TABLE_NAME}.{M.OwnedBy.house_id} "
+
+        f" LEFT OUTER JOIN {M.O.TABLE_NAME} "
+        f" ON {M.OwnedBy.TABLE_NAME}.{M.OwnedBy.owner_id} = {M.O.TABLE_NAME}.{M.O.id} "
+
+        f" GROUP BY {M.OwnedBy.owner_id}, {M.O.TABLE_NAME}.{M.O.name}"
+    )
+
+    try:
+        rows_effected, result = _get(_query)
+    except _Ex as e:
+        return e.error_code
+
+    return [(r[M.C.name], r['count']) for r in result]
+
+
+def get_top_customer() -> Customer:
+    _query = sql.SQL(
+        f"SELECT {M.C.id}, {M.C.name}, COUNT ({M.C.id})"
+
+        f" FROM {M.Res.TABLE_NAME} "
+        f" LEFT OUTER JOIN {M.C.TABLE_NAME} "
+        f" ON {M.Res.TABLE_NAME}.{M.Res.cid} = {M.C.TABLE_NAME}.{M.C.id} "
+        f" GROUP BY {M.C.TABLE_NAME}.{M.C.id}"
+        f" ORDER BY count DESC, {M.C.id} "
+        f" LIMIT 1"
+    )
+
+    # TODO: can we use limit here or do we need to do double select?
+
+    try:
+        rows_effected, result = _get(_query)
+    except _Ex as e:
+        return e.error_code
+
+    return _result_to_customer_obj(result)
+
+
+def get_all_location_owners() -> List[Owner]:
+    # get all owners who have a house in city where there is house in
+
+    # TODO: make this query look nicer
+    _query = sql.SQL(
+        f"""
+            SELECT owner_id as OwnerId,  name as Name FROM 
+        (
+        SELECT owner_id, name, COUNT(owner_id) as a FROM
+        (SELECT DISTINCT city, country  FROM public.apartment GROUP BY city, country) AS A
+        LEFT OUTER JOIN apartment
+        ON apartment.city = A.city
+        LEFT OUTER JOIN Ownedby
+        ON id = Ownedby.apartment_id
+        LEFT OUTER JOIN owner 
+        ON owner_id = owner.ownerId
+        GROUP BY owner_id, name
+        )
+        WHERE a = (SELECT COUNT(*) FROM (
+        SELECT DISTINCT city, country  FROM public.apartment GROUP BY city, country 
+            ))
+        """
+    )
+
+    try:
+        rows_effected, result = _get(_query)
+    except _Ex as e:
+        return e.error_code
+
+    return [_result_to_owner_obj([r]) for r in result]
+
+
+############# reviewe
 
 
 # ---------------------------------- BASIC API: ----------------------------------
@@ -378,32 +514,9 @@ def get_owner_rating(owner_id: int) -> float:
     pass
 
 
-def get_top_customer() -> Customer:
-    _query = 'SELECT MAX(customer_id), MAX(COUNT(customer_id)) FROM Reservations GROUP BY customer_id'
-    try:
-        rows_effected, result = _get(_query)
-    except _Ex as e:
-        return e.error_code
-    if not result:
-        return Owner.bad_owner()
-    return _result_to_customer_obj(result)
-
-
-def reservations_per_owner() -> List[Tuple[str, int]]:
-    _query = 'SELECT '
-    pass
-
-
 # ---------------------------------- ADVANCED API: ----------------------------------
 
 OWN_RELATION = 'own'
-
-
-def get_all_location_owners() -> List[Owner]:
-    # get all owners who have a house in city where there is house in
-    _query = f'SELECT DISTINCT pid, name FROM {OWN_RELATION}'
-    rows_effected, result = _get(_query)
-    return [_result_to_owner_obj(r) for r in result]
 
 
 def best_value_for_money() -> Apartment:
@@ -424,56 +537,81 @@ def get_apartment_recommendation(customer_id: int) -> List[Tuple[Apartment, floa
 # ---------------------------------- 5.1 Basic Database Functions ----------------------------------
 
 
-ALL_TABLES = [M.A.TABLE_NAME, M.C.TABLE_NAME, M.O.TABLE_NAME, M.OwnedBy.TABLE_NAME]
+ALL_TABLES = [M.A.TABLE_NAME, M.C.TABLE_NAME, M.O.TABLE_NAME, M.OwnedBy.TABLE_NAME,
+              M.Rev.TABLE_NAME, M.Res.TABLE_NAME]
 
 
 def create_tables():
-    conn = Connector.DBConnector()
+    quries = [
+        f"CREATE TABLE {M.O.TABLE_NAME}("
+        f"{M.O.id} INTEGER PRIMARY KEY,"
+        f" {M.O.name} TEXT NOT NULL)",
 
-    try:
+        f"CREATE TABLE {M.C.TABLE_NAME}("
+        f"{M.C.id} INTEGER PRIMARY KEY,"
+        f" {M.C.name} TEXT NOT NULL)",
 
-        conn.execute(f"CREATE TABLE {M.O.TABLE_NAME}("
-                     f"{M.O.id} INTEGER PRIMARY KEY,"
-                     f" {M.O.name} TEXT NOT NULL)")
+        f"CREATE TABLE {M.A.TABLE_NAME}("
+        f" {M.A.id} INTEGER,"
+        f" {M.A.address} TEXT NOT NULL,"
+        f" {M.A.city} TEXT NOT NULL,"
+        f" {M.A.country} TEXT NOT NULL,"
+        f" {M.A.size} int NOT NULL,"
+        f" PRIMARY KEY({M.A.id})"
+        f")",
 
-        conn.execute(f"CREATE TABLE {M.C.TABLE_NAME}("
-                     f"{M.C.id} INTEGER PRIMARY KEY,"
-                     f" {M.C.name} TEXT NOT NULL)")
+        f"CREATE TABLE {M.OwnedBy.TABLE_NAME}("
+        f"{M.OwnedBy.owner_id} INTEGER NOT NULL,"
+        f" {M.OwnedBy.house_id} INTEGER NOT NULL,"
+        f" PRIMARY KEY({M.OwnedBy.owner_id}, {M.OwnedBy.house_id}),"
+        f"FOREIGN KEY ({M.OwnedBy.owner_id}) REFERENCES {M.O.TABLE_NAME}({M.O.id}),"
+        f"FOREIGN KEY ({M.OwnedBy.house_id}) REFERENCES {M.A.TABLE_NAME}({M.A.id})"
+        f")",
 
-        conn.execute(
-            f"CREATE TABLE {M.A.TABLE_NAME}("
-            f" {M.A.id} INTEGER,"
-            f" {M.A.address} TEXT NOT NULL,"
-            f" {M.A.city} TEXT NOT NULL,"
-            f" {M.A.country} TEXT NOT NULL,"
-            f" {M.A.size} int NOT NULL,"
-            f" PRIMARY KEY({M.A.id})"
-            f")")
+        f"CREATE TABLE {M.OwnedBy.TABLE_NAME}("
+        f" {M.OwnedBy.owner_id} INTEGER NOT NULL,"
+        f" {M.OwnedBy.house_id} INTEGER NOT NULL,"
+        f" PRIMARY KEY({M.OwnedBy.owner_id}, {M.OwnedBy.house_id}),"
+        f"FOREIGN KEY ({M.OwnedBy.owner_id}) REFERENCES {M.O.TABLE_NAME}({M.O.id}),"
+        f"FOREIGN KEY ({M.OwnedBy.house_id}) REFERENCES {M.A.TABLE_NAME}({M.A.id})"
+        f")",
 
-        conn.execute(f"CREATE TABLE {M.OwnedBy.TABLE_NAME}("
-                     f"{M.OwnedBy.owner_id} INTEGER NOT NULL,"
-                     f" {M.OwnedBy.house_id} INTEGER NOT NULL,"
-                     f" PRIMARY KEY({M.OwnedBy.owner_id}, {M.OwnedBy.house_id}),"
-                     f"FOREIGN KEY ({M.OwnedBy.owner_id}) REFERENCES {M.O.TABLE_NAME}({M.O.id}),"
-                     f"FOREIGN KEY ({M.OwnedBy.house_id}) REFERENCES {M.A.TABLE_NAME}({M.A.id})"
-                     f")")
+        f"CREATE TABLE {M.Res.TABLE_NAME}("
+        f" {M.Res.cid} INTEGER NOT NULL,"
+        f" {M.Res.hid} INTEGER NOT NULL,"
+        f" {M.Res.start_date} DATE NOT NULL,"
+        f" {M.Res.end_date} DATE NOT NULL,"
+        f" {M.Res.total_price} FLOAT NOT NULL,"
+        f" PRIMARY KEY({M.Res.hid}, {M.Res.start_date}, {M.Res.end_date}),"
+        f" FOREIGN KEY ({M.Res.cid}) REFERENCES {M.C.TABLE_NAME}({M.C.id}),"
+        f" FOREIGN KEY ({M.Res.hid}) REFERENCES {M.A.TABLE_NAME}({M.A.id})"
+        f")",
 
-        # TODO: make sure positive int
-        # TODO: should we save each day as a raw?
-        # TODO: what are the keys?
-        # conn.execute(
-        #     "CREATE TABLE Reservations("
-        #     " customer_id INTEGER,"
-        #     " apartment_id INTEGER NOT NULL,"
-        #     " start_date DATE NOT NULL,"
-        #     " end_date DATE NOT NULL,"
-        #     " total_price FLOAT NOT NULL,"
-        #     " PRIMARY KEY(apartment_id, address))")
+        f"CREATE TABLE {M.Rev.TABLE_NAME}("
+        f" {M.Rev.cid} INTEGER NOT NULL,"
+        f" {M.Rev.hid} INTEGER NOT NULL,"
+        f" {M.Rev.review_date} DATE NOT NULL,"
+        f" {M.Rev.rating} INTEGER NOT NULL,"
+        f" {M.Rev.review_text} TEXT NOT NULL,"
+        f" PRIMARY KEY({M.Rev.cid}, {M.Rev.hid}),"
+        f" FOREIGN KEY ({M.Rev.cid}) REFERENCES {M.C.TABLE_NAME}({M.C.id}),"
+        f" FOREIGN KEY ({M.Rev.hid}) REFERENCES {M.A.TABLE_NAME}({M.A.id})"
+        f")",
+        # TODO: make sure the review date is after reservation have ended
+    ]
 
-    except DatabaseException:
-        pass
-    finally:
-        conn.close()
+    for q in quries:
+        try:
+            conn = Connector.DBConnector()
+            conn.execute(
+                sql.SQL(
+                    q
+                )
+            )
+        except Exception as e:
+            print(e)
+        finally:
+            conn.close()
 
 
 def clear_tables():
@@ -488,14 +626,16 @@ def clear_tables():
 
 
 def drop_tables():
-    conn = Connector.DBConnector()
     for table in ALL_TABLES:
-        query = f"DROP TABLE {table}"
+        conn = Connector.DBConnector()
+        query = f"DROP TABLE {table} CASCADE"
         try:
             conn.execute(query)
-        except Exception:
+        except Exception as e:
+            print(e)
             pass
-    conn.close()
+        finally:
+            conn.close()
 
 
 pass
