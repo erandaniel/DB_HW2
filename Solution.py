@@ -136,7 +136,8 @@ def _result_to_apartment_obj(result: Connector.ResultSet) -> Apartment:
 
 
 def get_apartment_owner(apartment_id: int) -> Owner:
-    _query = sql.SQL(f"SELECT * FROM {M.O.TABLE_NAME} WHERE {M.O.id}={{ID}}").format(
+    _query = sql.SQL(
+        f"SELECT * FROM {M.OwnedBy.TABLE_NAME} LEFT OUTER JOIN {M.O.TABLE_NAME} ON {M.OwnedBy.owner_id} = {M.O.id} WHERE {M.OwnedBy.house_id}={{ID}}").format(
         ID=sql.Literal(apartment_id),
     )
 
@@ -148,14 +149,6 @@ def get_apartment_owner(apartment_id: int) -> Owner:
         return Owner.bad_owner()
 
     return _result_to_owner_obj(result)
-
-
-def get_owner_apartments(owner_id: int) -> List[Apartment]:
-    # TODO: implement
-    pass
-
-
-# ---------------------------------- WORKING_ON_NOW ----------------------------------
 
 
 # ---------------------------------- CRUD API: ----------------------------------
@@ -310,6 +303,22 @@ def owner_doesnt_own_apartment(owner_id: int, apartment_id: int) -> ReturnValue:
     except _Ex as e:
         return e.error_code
     return ReturnValue.OK
+
+
+def get_owner_apartments(owner_id: int) -> List[Apartment]:
+    _query = sql.SQL(
+        f"SELECT * FROM {M.OwnedBy.TABLE_NAME} LEFT OUTER JOIN {M.O.TABLE_NAME} ON {M.OwnedBy.owner_id} = {M.O.id} WHERE {M.OwnedBy.owner_id}={{ID}}").format(
+        ID=sql.Literal(owner_id),
+    )
+
+    try:
+        rows_effected, result = _get(_query)
+    except _Ex as e:
+        return e.error_code
+    if not rows_effected:
+        return []
+
+    return [_result_to_owner_obj([r]) for r in result]
 
 
 ############# reservation
