@@ -11,19 +11,6 @@ from Business.Customer import Customer
 from Business.Apartment import Apartment
 
 
-# date exaples
-# TODO: remove
-# format: date(year: int, month: int, day: int)
-# example: 24/12/2023
-# d = date(2023, 12, 24)
-# Basic getters:
-# print(d.year) # prints “2023”
-# print(d.month) # prints “12”
-# print(d.day) # prints “24”
-# print(d.strftime('%Y-%m-%d')) # prints “2023-12-24”
-# print(d.strftime('%A %B %d')) # prints “Sunday December 24”
-
-
 # ---------------------------------- private functions: ----------------------------------
 class _Ex(Exception):
     def __init__(self, value):
@@ -78,9 +65,10 @@ class M:
 
 
 def _get(query):
+    _conn = None
     try:
         _conn = Connector.DBConnector()
-        rows_effected, result = _conn.execute(query)
+        _rows_effected, result = _conn.execute(query)
     except (DatabaseException.CHECK_VIOLATION, DatabaseException.NOT_NULL_VIOLATION):
         raise _Ex(ReturnValue.BAD_PARAMS)
     except DatabaseException.UNIQUE_VIOLATION:
@@ -90,13 +78,15 @@ def _get(query):
     except DatabaseException:
         raise _Ex(ReturnValue.ERROR)
     finally:
-        _conn.close()
+        try:
+            _conn.close()
+        except Exception:
+            raise _Ex(ReturnValue.ERROR)
 
-    return rows_effected, result
+    return _rows_effected, result
 
 
 def _insert(query):
-    # query = sql.SQL(query)
     _conn = None
     try:
         _conn = Connector.DBConnector()
@@ -112,7 +102,10 @@ def _insert(query):
     except Exception as e:
         raise e
     finally:
-        _conn.close()
+        try:
+            _conn.close()
+        except Exception:
+            raise _Ex(ReturnValue.ERROR)
 
     return _rows_effected, _
 
@@ -124,16 +117,20 @@ def _update(_query):
 
 
 def _delete(query):
-    conn = None
+    _conn = None
     try:
-        conn = Connector.DBConnector()
-        rows_effected, _ = conn.execute(query)
+        _conn = Connector.DBConnector()
+        rows_effected, _ = _conn.execute(query)
     except (DatabaseException.CHECK_VIOLATION, DatabaseException.NOT_NULL_VIOLATION):
         raise _Ex(ReturnValue.BAD_PARAMS)
     except DatabaseException:
         raise _Ex(ReturnValue.ERROR)
     finally:
-        conn.close()
+        try:
+            _conn.close()
+        except Exception:
+            raise _Ex(ReturnValue.ERROR)
+
     if not rows_effected:
         raise _Ex(ReturnValue.NOT_EXISTS)
 
@@ -162,9 +159,6 @@ def _result_to_apartment_obj(result: Connector.ResultSet) -> Apartment:
         country=result[0][M.A.country],
         size=result[0][M.A.size]
     )
-
-
-# ---------------------------------- WORKING_ON_NOW ----------------------------------
 
 
 # ---------------------------------- CRUD API: ----------------------------------
@@ -199,7 +193,6 @@ def get_owner(owner_id: int) -> Owner:
 
 
 def delete_owner(owner_id: int) -> ReturnValue:
-    # TODO: when getting None need to return BAD_PARAMS and not NOT_EXISTS
     _query = sql.SQL(f"DELETE FROM {M.O.TABLE_NAME} WHERE {M.O.id}={{ID}}").format(
         ID=sql.Literal(owner_id),
     )
@@ -283,7 +276,6 @@ def get_customer(customer_id: int) -> Customer:
 
 
 def delete_customer(customer_id: int) -> ReturnValue:
-    # TODO: when getting None need to return BAD_PARAMS and not NOT_EXISTS
     _query = sql.SQL(f"DELETE FROM {M.C.TABLE_NAME} WHERE {M.C.id}={{ID}}").format(
         ID=sql.Literal(customer_id),
     )
@@ -308,7 +300,6 @@ def owner_owns_apartment(owner_id: int, apartment_id: int) -> ReturnValue:
 
 
 def owner_doesnt_own_apartment(owner_id: int, apartment_id: int) -> ReturnValue:
-    # TODO: when getting None need to return BAD_PARAMS and not NOT_EXISTS
     _query = sql.SQL(
         f"DELETE FROM {M.OwnedBy.TABLE_NAME} WHERE {M.OwnedBy.owner_id}={{OWNER_ID}} AND {M.OwnedBy.house_id}={{HOUSE_ID}}").format(
         OWNER_ID=sql.Literal(owner_id),
@@ -334,7 +325,7 @@ def get_owner_apartments(owner_id: int) -> List[Apartment]:
     if not rows_effected:
         return []
 
-    return [_result_to_owner_obj([r]) for r in result]
+    return [_result_to_apartment_obj(r) for r in result]
 
 
 def get_apartment_owner(apartment_id: int) -> Owner:
@@ -489,8 +480,6 @@ def profit_per_month(year: int) -> List[Tuple[int, float]]:
 
 
 def get_all_location_owners() -> List[Owner]:
-    # get all owners who have a house in city where there is house in
-
     # TODO: make this query look nicer
     _query = sql.SQL(
         f"""
@@ -517,7 +506,7 @@ def get_all_location_owners() -> List[Owner]:
     except _Ex as e:
         return e.error_code
 
-    return [_result_to_owner_obj([r]) for r in result]
+    return [_result_to_owner_obj(r) for r in result]
 
 
 def best_value_for_money() -> Apartment:
@@ -545,11 +534,6 @@ def best_value_for_money() -> Apartment:
 
     return _result_to_apartment_obj(result)
 
-
-############# reviewe
-
-
-# ---------------------------------- BASIC API: ----------------------------------
 
 def get_apartment_rating(apartment_id: int) -> float:
     # must use view (the same view as get_owner_rating and get_apartment_rating)
@@ -602,7 +586,33 @@ def get_owner_rating(owner_id: int) -> float:
 
 
 def get_apartment_recommendation(customer_id: int) -> List[Tuple[Apartment, float]]:
-    # TODO: implement
+    # TODO: implement almost done
+    temp_query = f"""
+SELECT   apartment_id, AVG(rating),  AVG_DIST_RATIO , SUM(rating)*AVG_DIST_RATIO AS EXPECTED FROM
+(SELECT C.customer_id, public.reviews.customer_id AS REVIWER, AVG_DIST_RATIO, apartment_id, rating FROM
+(SELECT customer_id, AVG(DIST_RATIO) AS AVG_DIST_RATIO FROM
+(SELECT DISTINCT *, rating/RATING_AVG_EXCLUSING AS DIST_RATIO FROM   
+(SELECT 
+	apartment_id,
+	COUNT(rating) as RATERS_EXCLUDING, 
+	SUM(rating) AS RATING_SUM_EXCLUSING,
+	AVG(rating) AS RATING_AVG_EXCLUSING
+	FROM public.reviews
+	WHERE customer_id != 2
+	GROUP BY apartment_id 
+) AS A
+	LEFT JOIN
+	(SELECT customer_id, rating FROM public.reviews)
+	ON apartment_id = apartment_id
+    WHERE RATING_SUM_EXCLUSING != 0
+)
+WHERE customer_id = 2
+GROUP BY customer_id
+) AS C , public.reviews
+WHERE C.customer_id != public.reviews.customer_id
+) AS D
+GROUP BY apartment_id, AVG_DIST_RATIO
+"""
     pass
 
 
@@ -677,6 +687,7 @@ def create_tables():
         f" LEFT OUTER JOIN {M.OwnedBy.TABLE_NAME}"
         f" ON {M.Rev.TABLE_NAME}.{M.Rev.hid} = {M.OwnedBy.TABLE_NAME}.{M.OwnedBy.house_id}",
 
+        # TODO: add contains for all tables
         # TODO: make sure the review date is after reservation have ended
     ]
 
