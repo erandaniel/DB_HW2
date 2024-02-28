@@ -70,6 +70,12 @@ class M:
         end_date = 'end_date'
         total_price = 'total_price'
 
+    class RevView:
+        TABLE_NAME = 'ReviewsView'
+        house_id = 'apartment_id'
+        owner_id = 'owner_id'
+        rating = 'rating'
+
 
 def _get(query):
     try:
@@ -465,6 +471,23 @@ def get_top_customer() -> Customer:
     return _result_to_customer_obj(result)
 
 
+def profit_per_month(year: int) -> List[Tuple[int, float]]:
+    _query = sql.SQL(
+        f"SELECT {M.Res.hid}, (SUM({M.Res.total_price})/12)*0.15 as profit"
+        f" FROM {M.Res.TABLE_NAME}"
+        f" WHERE EXTRACT(YEAR FROM {M.Res.end_date}) = {{YEAR}}"
+        f" GROUP BY {M.Res.hid}").format(
+        YEAR=sql.Literal(year),
+    )
+
+    try:
+        rows_effected, result = _get(_query)
+    except _Ex as e:
+        return e.error_code
+
+    return [(r[M.Res.hid], r['profit']) for r in result]
+
+
 def get_all_location_owners() -> List[Owner]:
     # get all owners who have a house in city where there is house in
 
@@ -497,6 +520,32 @@ def get_all_location_owners() -> List[Owner]:
     return [_result_to_owner_obj([r]) for r in result]
 
 
+def best_value_for_money() -> Apartment:
+    # TODO: make this query look nicer
+    _query = sql.SQL(
+        f"""
+        SELECT * FROM (
+        SELECT reservations.apartment_id, AVG(rating)/(SUM(total_price)/SUM(end_date-start_date)) as value
+        	FROM public.reservations
+        	LEFT OUTER JOIN public.reviews 
+        	ON reservations.apartment_id = reviews.apartment_id
+        	GROUP BY reservations.apartment_id
+        	ORDER BY value 
+        	LIMIT 1
+        ) as A
+        LEFT OUTER JOIN public.apartment
+        ON A.apartment_id = apartment.id
+        """
+    )
+
+    try:
+        rows_effected, result = _get(_query)
+    except _Ex as e:
+        return e.error_code
+
+    return _result_to_apartment_obj(result)
+
+
 ############# reviewe
 
 
@@ -504,29 +553,52 @@ def get_all_location_owners() -> List[Owner]:
 
 def get_apartment_rating(apartment_id: int) -> float:
     # must use view (the same view as get_owner_rating and get_apartment_rating)
-    # TODO: implement
-    pass
+
+    _query = sql.SQL(
+        f"SELECT AVG({M.RevView.rating}) as avg_rating"
+        f" FROM {M.RevView.TABLE_NAME}"
+        f" WHERE {M.RevView.house_id} = {{HID}}"
+        f" GROUP BY {M.RevView.house_id}").format(
+        HID=sql.Literal(apartment_id)
+    )
+
+    try:
+        rows_effected, result = _get(_query)
+    except _Ex as e:
+        return e.error_code
+
+    if not rows_effected:
+        return 0
+
+    return result[0]["avg_rating"]
 
 
 def get_owner_rating(owner_id: int) -> float:
     # must use view (the same view as get_owner_rating and get_apartment_rating)
-    # TODO: implement
-    pass
+    _query = sql.SQL(
+        f" SELECT AVG(avg_house_rating) as avg_owner_rating FROM"
+        f" ("
+        f" SELECT {M.RevView.house_id}, {M.RevView.owner_id}, AVG({M.RevView.rating}) as avg_house_rating"
+        f" FROM {M.RevView.TABLE_NAME}"
+        f" WHERE {M.RevView.owner_id} = {{OID}}"
+        f" GROUP BY {M.RevView.house_id}, {M.RevView.owner_id}"
+        f" )"
+        f" GROUP BY owner_id").format(
+        OID=sql.Literal(owner_id)
+    )
+
+    try:
+        rows_effected, result = _get(_query)
+    except _Ex as e:
+        return e.error_code
+
+    if not rows_effected:
+        return 0
+
+    return result[0]["avg_owner_rating"]
 
 
 # ---------------------------------- ADVANCED API: ----------------------------------
-
-OWN_RELATION = 'own'
-
-
-def best_value_for_money() -> Apartment:
-    # TODO: implement
-    pass
-
-
-def profit_per_month(year: int) -> List[Tuple[int, float]]:
-    # TODO: implement
-    pass
 
 
 def get_apartment_recommendation(customer_id: int) -> List[Tuple[Apartment, float]]:
@@ -538,7 +610,7 @@ def get_apartment_recommendation(customer_id: int) -> List[Tuple[Apartment, floa
 
 
 ALL_TABLES = [M.A.TABLE_NAME, M.C.TABLE_NAME, M.O.TABLE_NAME, M.OwnedBy.TABLE_NAME,
-              M.Rev.TABLE_NAME, M.Res.TABLE_NAME]
+              M.Rev.TABLE_NAME, M.Res.TABLE_NAME, M.RevView.TABLE_NAME]
 
 
 def create_tables():
@@ -597,6 +669,14 @@ def create_tables():
         f" FOREIGN KEY ({M.Rev.cid}) REFERENCES {M.C.TABLE_NAME}({M.C.id}),"
         f" FOREIGN KEY ({M.Rev.hid}) REFERENCES {M.A.TABLE_NAME}({M.A.id})"
         f")",
+
+        f"CREATE VIEW {M.RevView.TABLE_NAME} "
+        f" AS"
+        f" SELECT {M.Rev.TABLE_NAME}.{M.Rev.hid}, {M.OwnedBy.owner_id}, {M.Rev.rating}"
+        f" FROM {M.Rev.TABLE_NAME}"
+        f" LEFT OUTER JOIN {M.OwnedBy.TABLE_NAME}"
+        f" ON {M.Rev.TABLE_NAME}.{M.Rev.hid} = {M.OwnedBy.TABLE_NAME}.{M.OwnedBy.house_id}",
+
         # TODO: make sure the review date is after reservation have ended
     ]
 
