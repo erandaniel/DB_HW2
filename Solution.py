@@ -193,6 +193,9 @@ def get_owner(owner_id: int) -> Owner:
 
 
 def delete_owner(owner_id: int) -> ReturnValue:
+    if owner_id <= 0:
+        return ReturnValue.BAD_PARAMS
+
     _query = sql.SQL(f"DELETE FROM {M.O.TABLE_NAME} WHERE {M.O.id}={{ID}}").format(
         ID=sql.Literal(owner_id),
     )
@@ -505,7 +508,6 @@ def get_all_location_owners() -> List[Owner]:
         rows_effected, result = _get(_query)
     except _Ex as e:
         return e.error_code
-
     return [_result_to_owner_obj(r) for r in result]
 
 
@@ -626,8 +628,9 @@ ALL_TABLES = [M.A.TABLE_NAME, M.C.TABLE_NAME, M.O.TABLE_NAME, M.OwnedBy.TABLE_NA
 def create_tables():
     quries = [
         f"CREATE TABLE {M.O.TABLE_NAME}("
-        f"{M.O.id} INTEGER PRIMARY KEY,"
-        f" {M.O.name} TEXT NOT NULL)",
+        f"{M.O.id} INTEGER PRIMARY KEY CHECK ({M.O.id} > 0),"
+        f" {M.O.name} TEXT NOT NULL)"
+        ,
 
         f"CREATE TABLE {M.C.TABLE_NAME}("
         f"{M.C.id} INTEGER PRIMARY KEY,"
