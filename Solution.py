@@ -11,6 +11,8 @@ from Business.Customer import Customer
 from Business.Apartment import Apartment
 
 
+# TODO: another update (need to check if all the python checking (id < 0) are fine if not then >0 for all ids should be added to the CREATE TABLES
+
 # ---------------------------------- private functions: ----------------------------------
 class _Ex(Exception):
     def __init__(self, value):
@@ -175,8 +177,8 @@ def add_owner(owner: Owner) -> ReturnValue:
         return e.error_code
     return ReturnValue.OK
 
-def get_owner(owner_id: int) ->           Owner:
 
+def get_owner(owner_id: int) -> Owner:
     _query = sql.SQL(f"SELECT * FROM {M.O.TABLE_NAME} WHERE {M.O.id}={{ID}}").format(
         ID=sql.Literal(owner_id),
     )
@@ -288,7 +290,6 @@ def get_customer(customer_id: int) -> Customer:
 
 
 def delete_customer(customer_id: int) -> ReturnValue:
-
     if customer_id <= 0:
         return ReturnValue.BAD_PARAMS
 
@@ -739,6 +740,7 @@ def clear_tables():
             pass
         finally:
             conn.close()
+
 
 def drop_tables():
     for table in ALL_TABLES:
