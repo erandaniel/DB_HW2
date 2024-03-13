@@ -149,7 +149,7 @@ class TestCRUD(unittest.TestCase):
         self.assertEqual(customer_made_reservation(2,2,d1,d2,1200),ReturnValue.OK)
         self.assertEqual(customer_made_reservation(2,2,d3,d4,11000),ReturnValue.OK)
         self.assertEqual(customer_made_reservation(1,2,d2,d3,11000),ReturnValue.OK)
-        self.assertEqual(customer_made_reservation(3,1,td1,td2,1700),ReturnValue.BAD_PARAMS)
+        self.assertEqual(customer_made_reservation(3,1,td1,td2,1700),ReturnValue.BAD_PARAMS) # TODO: make sure there is not another reservation in that rage
         self.assertEqual(customer_made_reservation(3,1,td2,td3,1700),ReturnValue.BAD_PARAMS)
         self.assertEqual(customer_made_reservation(3,1,td4,td5,1700),ReturnValue.BAD_PARAMS)
         self.assertEqual(customer_made_reservation(-1,1,vd1,vd2,1700),ReturnValue.BAD_PARAMS)

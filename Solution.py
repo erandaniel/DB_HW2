@@ -175,8 +175,8 @@ def add_owner(owner: Owner) -> ReturnValue:
         return e.error_code
     return ReturnValue.OK
 
+def get_owner(owner_id: int) ->           Owner:
 
-def get_owner(owner_id: int) -> Owner:
     _query = sql.SQL(f"SELECT * FROM {M.O.TABLE_NAME} WHERE {M.O.id}={{ID}}").format(
         ID=sql.Literal(owner_id),
     )
@@ -207,6 +207,9 @@ def delete_owner(owner_id: int) -> ReturnValue:
 
 
 def add_apartment(apartment: Apartment) -> ReturnValue:
+    if not apartment.get_id() or apartment.get_id() <= 0 or apartment.get_size() <= 0:
+        return ReturnValue.BAD_PARAMS
+
     _query = sql.SQL(
         f"INSERT INTO {M.A.TABLE_NAME}({M.A.id}, {M.A.address}, {M.A.city}, {M.A.country}, {M.A.size}) "
         f"VALUES({{ID}}, {{Address}}, {{City}}, {{Country}}, {{Size}})").format(
@@ -239,6 +242,9 @@ def get_apartment(apartment_id: int) -> Apartment:
 
 
 def delete_apartment(apartment_id: int) -> ReturnValue:
+    if apartment_id <= 0:
+        return ReturnValue.BAD_PARAMS
+
     _query = sql.SQL(f"DELETE FROM {M.A.TABLE_NAME} WHERE {M.A.id}={{ID}}").format(
         ID=sql.Literal(apartment_id)
     )
@@ -251,6 +257,9 @@ def delete_apartment(apartment_id: int) -> ReturnValue:
 
 
 def add_customer(customer: Customer) -> ReturnValue:
+    if not customer.get_customer_id() or customer.get_customer_id() <= 0:
+        return ReturnValue.BAD_PARAMS
+
     _query = sql.SQL(f"INSERT INTO {M.C.TABLE_NAME}({M.C.id}, {M.C.name}) VALUES({{ID}}, {{Name}})").format(
         ID=sql.Literal(customer.get_customer_id()),
         Name=sql.Literal(customer.get_customer_name())
@@ -279,6 +288,10 @@ def get_customer(customer_id: int) -> Customer:
 
 
 def delete_customer(customer_id: int) -> ReturnValue:
+
+    if customer_id <= 0:
+        return ReturnValue.BAD_PARAMS
+
     _query = sql.SQL(f"DELETE FROM {M.C.TABLE_NAME} WHERE {M.C.id}={{ID}}").format(
         ID=sql.Literal(customer_id),
     )
@@ -290,6 +303,9 @@ def delete_customer(customer_id: int) -> ReturnValue:
 
 
 def owner_owns_apartment(owner_id: int, apartment_id: int) -> ReturnValue:
+    if owner_id <= 0 or apartment_id <= 0:
+        return ReturnValue.BAD_PARAMS
+
     _query = sql.SQL(
         f"INSERT INTO {M.OwnedBy.TABLE_NAME}({M.OwnedBy.owner_id}, {M.OwnedBy.house_id}) VALUES({{OWNER_ID}}, {{HOUSE_ID}})").format(
         OWNER_ID=sql.Literal(owner_id),
@@ -328,7 +344,7 @@ def get_owner_apartments(owner_id: int) -> List[Apartment]:
     if not rows_effected:
         return []
 
-    return [_result_to_apartment_obj(r) for r in result]
+    return [_result_to_apartment_obj(r) for r in result if result]
 
 
 def get_apartment_owner(apartment_id: int) -> Owner:
@@ -349,6 +365,9 @@ def get_apartment_owner(apartment_id: int) -> Owner:
 
 def customer_made_reservation(customer_id: int, apartment_id: int, start_date: date, end_date: date,
                               total_price: float) -> ReturnValue:
+    if customer_id <= 0 or apartment_id <= 0:
+        return ReturnValue.BAD_PARAMS
+
     _query = sql.SQL(
         f"INSERT INTO {M.Res.TABLE_NAME}({M.Res.cid}, {M.Res.hid}, {M.Res.start_date}, {M.Res.end_date}, {M.Res.total_price}) "
         f"VALUES({{cid}}, {{hid}}, {{start_date}}, {{end_date}}, {{total_price}})").format(
@@ -637,18 +656,19 @@ def create_tables():
         f" {M.C.name} TEXT NOT NULL)",
 
         f"CREATE TABLE {M.A.TABLE_NAME}("
-        f" {M.A.id} INTEGER,"
+        f" {M.A.id} INTEGER UNIQUE,"
         f" {M.A.address} TEXT NOT NULL,"
         f" {M.A.city} TEXT NOT NULL,"
         f" {M.A.country} TEXT NOT NULL,"
         f" {M.A.size} int NOT NULL,"
-        f" PRIMARY KEY({M.A.id})"
+        f" PRIMARY KEY({M.A.city}, {M.A.address})"
+        # f" PRIMARY KEY({M.A.id})"
         f")",
 
         f"CREATE TABLE {M.OwnedBy.TABLE_NAME}("
         f"{M.OwnedBy.owner_id} INTEGER NOT NULL,"
         f" {M.OwnedBy.house_id} INTEGER NOT NULL,"
-        f" PRIMARY KEY({M.OwnedBy.owner_id}, {M.OwnedBy.house_id}),"
+        f" PRIMARY KEY({M.OwnedBy.house_id}),"
         f"FOREIGN KEY ({M.OwnedBy.owner_id}) REFERENCES {M.O.TABLE_NAME}({M.O.id}),"
         f"FOREIGN KEY ({M.OwnedBy.house_id}) REFERENCES {M.A.TABLE_NAME}({M.A.id})"
         f")",
@@ -709,15 +729,16 @@ def create_tables():
 
 
 def clear_tables():
-    conn = Connector.DBConnector()
     for table in ALL_TABLES:
+        conn = Connector.DBConnector()
         query = f"DELETE FROM {table}"
         try:
             conn.execute(query)
-        except Exception:
+        except Exception as e:
+            print(e)
             pass
-    conn.close()
-
+        finally:
+            conn.close()
 
 def drop_tables():
     for table in ALL_TABLES:
