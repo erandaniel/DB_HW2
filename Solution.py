@@ -592,20 +592,20 @@ def best_value_for_money() -> Apartment:
     #     f"""
     # SELECT * FROM (
     #    SELECT * FROM (SELECT DISTINCT reservations.apartment_id,
-	# 				  AVG(rating) AS RATE,
-	# 				  SUM(total_price),
-	# 				  SUM(1+end_date-start_date) AS NIGHTS2 ,
-	# 				  COALESCE(AVG(rating)/(SUM(total_price)/SUM(1+end_date-start_date)),0) as value
+    # 				  AVG(rating) AS RATE,
+    # 				  SUM(total_price),
+    # 				  SUM(1+end_date-start_date) AS NIGHTS2 ,
+    # 				  COALESCE(AVG(rating)/(SUM(total_price)/SUM(1+end_date-start_date)),0) as value
     #     	FROM public.reservations
     #     	LEFT JOIN public.reviews
     #     	ON reservations.apartment_id = reviews.apartment_id AND reservations.customer_id = reviews.customer_id
     #     	GROUP BY reservations.apartment_id
-	# 		)
-	# 		WHERE value >= 0
+    # 		)
+    # 		WHERE value >= 0
     #     ) as A
     #     LEFT OUTER JOIN public.apartment
     #     ON A.apartment_id = apartment.id
-	# 	ORDER BY value DESC
+    # 	ORDER BY value DESC
     #     LIMIT 1
     #     """
 
@@ -864,8 +864,3 @@ def drop_tables():
             print(e)
         finally:
             conn.close()
-
-
-
-
-pass
