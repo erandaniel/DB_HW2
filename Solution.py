@@ -366,20 +366,21 @@ def get_apartment_owner(apartment_id: int) -> Owner:
 
 def customer_made_reservation(customer_id: int, apartment_id: int, start_date: date, end_date: date,
                               total_price: float) -> ReturnValue:
-    if customer_id <= 0 or apartment_id <= 0:
+    if customer_id <= 0 or apartment_id <= 0 or total_price <=0:
         return ReturnValue.BAD_PARAMS
 
-    _query = sql.SQL(
-        f"INSERT INTO {M.Res.TABLE_NAME}({M.Res.cid}, {M.Res.hid}, {M.Res.start_date}, {M.Res.end_date}, {M.Res.total_price}) "
-        f"VALUES({{cid}}, {{hid}}, {{start_date}}, {{end_date}}, {{total_price}})").format(
-        cid=sql.Literal(customer_id),
-        hid=sql.Literal(apartment_id),
+    _query = sql.SQL(f"INSERT INTO {M.Res.TABLE_NAME} "
+                    f"SELECT {{{M.Res.cid}}}, {{{M.Res.hid}}}, {{{M.Res.start_date}}}, {{{M.Res.end_date}}}, {{{M.Res.total_price}}} "
+                    f"WHERE NOT EXISTS (SELECT 1 FROM {M.Res.TABLE_NAME} AS Res WHERE {{{M.Res.hid}}} = Res.{M.Res.hid} AND "
+                    f"({{{M.Res.start_date}}}, {{{M.Res.end_date}}}) OVERLAPS (Res.{M.Res.start_date}, Res.{M.Res.end_date}))").format(
+        customer_id=sql.Literal(customer_id),
+        apartment_id=sql.Literal(apartment_id),
         start_date=sql.Literal(start_date),
         end_date=sql.Literal(end_date),
-        total_price=sql.Literal(total_price)
-    )
+        total_price=sql.Literal(total_price))
     try:
-        _insert(_query)
+        num_of_rows_changed, _ = _insert(_query)
+        if num_of_rows_changed == 0: return ReturnValue.BAD_PARAMS
     except _Ex as e:
         return e.error_code
     return ReturnValue.OK
@@ -403,15 +404,24 @@ def customer_cancelled_reservation(customer_id: int, apartment_id: int, start_da
 
 def customer_reviewed_apartment(customer_id: int, apartment_id: int, review_date: date, rating: int,
                                 review_text: str) -> ReturnValue:
-    _query = sql.SQL(
-        f"INSERT INTO {M.Rev.TABLE_NAME}({M.Rev.cid}, {M.Rev.hid}, {M.Rev.review_date}, {M.Rev.rating}, {M.Rev.review_text}) "
-        f"VALUES({{cid}}, {{hid}}, {{DATE}}, {{RATING}}, {{TEXT}})").format(
+    if customer_id <= 0 or apartment_id <= 0 or rating < 1 or rating > 10:
+        return ReturnValue.BAD_PARAMS
+    _query = sql.SQL(f"INSERT INTO {M.Rev.TABLE_NAME} "
+        f"SELECT {{{M.Rev.cid}}}, {{{M.Rev.hid}}}, {{{M.Rev.review_date}}}, {{{M.Rev.rating}}}, {{{M.Rev.review_text}}} "
+        f"WHERE EXISTS (SELECT 1 FROM {M.Res.TABLE_NAME} AS Res "
+        f"WHERE{{{M.Rev.hid}}} = Res.{M.Res.hid} AND Res.{M.Res.end_date} <= {{{M.Rev.review_date}}} AND {{{M.Rev.cid}}} = Res.{M.Res.cid} )"
+    ).format(
         cid=sql.Literal(customer_id),
         hid=sql.Literal(apartment_id),
         DATE=sql.Literal(review_date),
         RATING=sql.Literal(rating),
         TEXT=sql.Literal(review_text)
+
+
     )
+
+
+
     try:
         _insert(_query)
     except _Ex as e:
@@ -647,7 +657,7 @@ ALL_TABLES = [M.A.TABLE_NAME, M.C.TABLE_NAME, M.O.TABLE_NAME, M.OwnedBy.TABLE_NA
 
 def create_tables():
     quries = [
-        f"CREATE TABLE {M.O.TABLE_NAME}("
+        f"CREATE TABLE {M.O.TABLE_NAME}(" #Owner
         f"{M.O.id} INTEGER PRIMARY KEY CHECK ({M.O.id} > 0),"
         f" {M.O.name} TEXT NOT NULL)"
         ,
@@ -670,14 +680,6 @@ def create_tables():
         f"{M.OwnedBy.owner_id} INTEGER NOT NULL,"
         f" {M.OwnedBy.house_id} INTEGER NOT NULL,"
         f" PRIMARY KEY({M.OwnedBy.house_id}),"
-        f"FOREIGN KEY ({M.OwnedBy.owner_id}) REFERENCES {M.O.TABLE_NAME}({M.O.id}),"
-        f"FOREIGN KEY ({M.OwnedBy.house_id}) REFERENCES {M.A.TABLE_NAME}({M.A.id})"
-        f")",
-
-        f"CREATE TABLE {M.OwnedBy.TABLE_NAME}("
-        f" {M.OwnedBy.owner_id} INTEGER NOT NULL,"
-        f" {M.OwnedBy.house_id} INTEGER NOT NULL,"
-        f" PRIMARY KEY({M.OwnedBy.owner_id}, {M.OwnedBy.house_id}),"
         f"FOREIGN KEY ({M.OwnedBy.owner_id}) REFERENCES {M.O.TABLE_NAME}({M.O.id}),"
         f"FOREIGN KEY ({M.OwnedBy.house_id}) REFERENCES {M.A.TABLE_NAME}({M.A.id})"
         f")",
@@ -709,7 +711,7 @@ def create_tables():
         f" SELECT {M.Rev.TABLE_NAME}.{M.Rev.hid}, {M.OwnedBy.owner_id}, {M.Rev.rating}"
         f" FROM {M.Rev.TABLE_NAME}"
         f" LEFT OUTER JOIN {M.OwnedBy.TABLE_NAME}"
-        f" ON {M.Rev.TABLE_NAME}.{M.Rev.hid} = {M.OwnedBy.TABLE_NAME}.{M.OwnedBy.house_id}",
+        f" ON {M.Rev.TABLE_NAME}.{M.Rev.hid} = {M.OwnedBy.TABLE_NAME}.{M.OwnedBy.house_id} ",
 
         # TODO: add contains for all tables
         # TODO: make sure the review date is after reservation have ended
