@@ -679,7 +679,7 @@ GROUP BY apartment_id, AVG_DIST_RATIO
 
 
 ALL_TABLES = [M.A.TABLE_NAME, M.C.TABLE_NAME, M.O.TABLE_NAME, M.OwnedBy.TABLE_NAME,
-              M.Rev.TABLE_NAME, M.Res.TABLE_NAME, M.RevView.TABLE_NAME]
+              M.Rev.TABLE_NAME, M.Res.TABLE_NAME]
 
 
 def create_tables():
