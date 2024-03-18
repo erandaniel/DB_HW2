@@ -19,51 +19,37 @@ class _Ex(Exception):
         self.error_code = value
 
 
-class M:
-    class O:
-        TABLE_NAME = 'Owner'
-        id = 'OwnerID'
-        name = "Name"
-
-    class A:
-        TABLE_NAME = 'Apartment'
-        id = "ID"
-        address = 'Address'
-        city = 'City'
-        country = 'Country'
-        size = 'Size'
-
-    class C:
-        TABLE_NAME = 'Customer'
-        id = 'id'
-        name = 'name'
-
-    class OwnedBy:
-        TABLE_NAME = 'OwnedBy'
-        owner_id = 'owner_id'
-        house_id = 'apartment_id'
-
-    class Rev:
-        TABLE_NAME = 'Reviews'
-        cid = 'customer_id'
-        hid = 'apartment_id'
-        review_date = 'review_date'
-        rating = 'rating'
-        review_text = 'review_text'
-
-    class Res:
-        TABLE_NAME = 'Reservations'
-        cid = 'customer_id'
-        hid = 'apartment_id'
-        start_date = 'start_date'
-        end_date = 'end_date'
-        total_price = 'total_price'
-
-    class RevView:
-        TABLE_NAME = 'ReviewsView'
-        house_id = 'apartment_id'
-        owner_id = 'owner_id'
-        rating = 'rating'
+M_O_TABLE_NAME = 'Owner'
+M_O_id = 'OwnerID'
+M_O_name = "Name"
+M_A_TABLE_NAME = 'Apartment'
+M_A_id = "ID"
+M_A_address = 'Address'
+M_A_city = 'City'
+M_A_country = 'Country'
+M_A_size = 'Size'
+M_C_TABLE_NAME = 'Customer'
+M_C_id = 'id'
+M_C_name = 'name'
+M_OwnedBy_TABLE_NAME = 'OwnedBy'
+M_OwnedBy_owner_id = 'owner_id'
+M_OwnedBy_house_id = 'apartment_id'
+M_Rev_TABLE_NAME = 'Reviews'
+M_Rev_cid = 'customer_id'
+M_Rev_hid = 'apartment_id'
+M_Rev_review_date = 'review_date'
+M_Rev_rating = 'rating'
+M_Rev_review_text = 'review_text'
+M_Res_TABLE_NAME = 'Reservations'
+M_Res_cid = 'customer_id'
+M_Res_hid = 'apartment_id'
+M_Res_start_date = 'start_date'
+M_Res_end_date = 'end_date'
+M_Res_total_price = 'total_price'
+M_RevView_TABLE_NAME = 'ReviewsView'
+M_RevView_house_id = 'apartment_id'
+M_RevView_owner_id = 'owner_id'
+M_RevView_rating = 'rating'
 
 
 def _get(query):
@@ -142,25 +128,25 @@ def _delete(query):
 
 def _result_to_owner_obj(result: Connector.ResultSet) -> Owner:
     return Owner(
-        owner_id=result[0][M.O.id],
-        owner_name=result[0][M.O.name],
+        owner_id=result[0][M_O_id],
+        owner_name=result[0][M_O_name],
     )
 
 
 def _result_to_customer_obj(result: Connector.ResultSet) -> Customer:
     return Customer(
-        customer_id=result[0][M.C.id],
-        customer_name=result[0][M.C.name],
+        customer_id=result[0][M_C_id],
+        customer_name=result[0][M_C_name],
     )
 
 
 def _result_to_apartment_obj(result: Connector.ResultSet) -> Apartment:
     return Apartment(
-        id=result[M.A.id],
-        address=result[M.A.address],
-        city=result[M.A.city],
-        country=result[M.A.country],
-        size=result[M.A.size]
+        id=result[M_A_id],
+        address=result[M_A_address],
+        city=result[M_A_city],
+        country=result[M_A_country],
+        size=result[M_A_size]
     )
 
 
@@ -168,7 +154,7 @@ def _result_to_apartment_obj(result: Connector.ResultSet) -> Apartment:
 
 
 def add_owner(owner: Owner) -> ReturnValue:
-    _query = sql.SQL(f"INSERT INTO {M.O.TABLE_NAME}({M.O.id}, {M.O.name}) VALUES({{ID}}, {{Name}})").format(
+    _query = sql.SQL(f"INSERT INTO {M_O_TABLE_NAME}({M_O_id}, {M_O_name}) VALUES({{ID}}, {{Name}})").format(
         ID=sql.Literal(owner.get_owner_id()),
         Name=sql.Literal(owner.get_owner_name())
     )
@@ -180,7 +166,7 @@ def add_owner(owner: Owner) -> ReturnValue:
 
 
 def get_owner(owner_id: int) -> Owner:
-    _query = sql.SQL(f"SELECT * FROM {M.O.TABLE_NAME} WHERE {M.O.id}={{ID}}").format(
+    _query = sql.SQL(f"SELECT * FROM {M_O_TABLE_NAME} WHERE {M_O_id}={{ID}}").format(
         ID=sql.Literal(owner_id),
     )
 
@@ -199,7 +185,7 @@ def delete_owner(owner_id: int) -> ReturnValue:
     if owner_id <= 0:
         return ReturnValue.BAD_PARAMS
 
-    _query = sql.SQL(f"DELETE FROM {M.O.TABLE_NAME} WHERE {M.O.id}={{ID}}").format(
+    _query = sql.SQL(f"DELETE FROM {M_O_TABLE_NAME} WHERE {M_O_id}={{ID}}").format(
         ID=sql.Literal(owner_id),
     )
     try:
@@ -214,7 +200,7 @@ def add_apartment(apartment: Apartment) -> ReturnValue:
         return ReturnValue.BAD_PARAMS
 
     _query = sql.SQL(
-        f"INSERT INTO {M.A.TABLE_NAME}({M.A.id}, {M.A.address}, {M.A.city}, {M.A.country}, {M.A.size}) "
+        f"INSERT INTO {M_A_TABLE_NAME}({M_A_id}, {M_A_address}, {M_A_city}, {M_A_country}, {M_A_size}) "
         f"VALUES({{ID}}, {{Address}}, {{City}}, {{Country}}, {{Size}})").format(
         ID=sql.Literal(apartment.get_id()),
         Address=sql.Literal(apartment.get_address()),
@@ -230,7 +216,7 @@ def add_apartment(apartment: Apartment) -> ReturnValue:
 
 
 def get_apartment(apartment_id: int) -> Apartment:
-    _query = sql.SQL(f"SELECT * FROM {M.A.TABLE_NAME} WHERE {M.A.id}={{ID}}").format(
+    _query = sql.SQL(f"SELECT * FROM {M_A_TABLE_NAME} WHERE {M_A_id}={{ID}}").format(
         ID=sql.Literal(apartment_id)
     )
 
@@ -248,7 +234,7 @@ def delete_apartment(apartment_id: int) -> ReturnValue:
     if apartment_id <= 0:
         return ReturnValue.BAD_PARAMS
 
-    _query = sql.SQL(f"DELETE FROM {M.A.TABLE_NAME} WHERE {M.A.id}={{ID}}").format(
+    _query = sql.SQL(f"DELETE FROM {M_A_TABLE_NAME} WHERE {M_A_id}={{ID}}").format(
         ID=sql.Literal(apartment_id)
     )
 
@@ -263,7 +249,7 @@ def add_customer(customer: Customer) -> ReturnValue:
     if not customer.get_customer_id() or customer.get_customer_id() <= 0:
         return ReturnValue.BAD_PARAMS
 
-    _query = sql.SQL(f"INSERT INTO {M.C.TABLE_NAME}({M.C.id}, {M.C.name}) VALUES({{ID}}, {{Name}})").format(
+    _query = sql.SQL(f"INSERT INTO {M_C_TABLE_NAME}({M_C_id}, {M_C_name}) VALUES({{ID}}, {{Name}})").format(
         ID=sql.Literal(customer.get_customer_id()),
         Name=sql.Literal(customer.get_customer_name())
     )
@@ -275,7 +261,7 @@ def add_customer(customer: Customer) -> ReturnValue:
 
 
 def get_customer(customer_id: int) -> Customer:
-    _query = sql.SQL(f"SELECT * FROM {M.C.TABLE_NAME} WHERE {M.C.id}={{ID}}").format(
+    _query = sql.SQL(f"SELECT * FROM {M_C_TABLE_NAME} WHERE {M_C_id}={{ID}}").format(
         ID=sql.Literal(customer_id),
     )
 
@@ -294,7 +280,7 @@ def delete_customer(customer_id: int) -> ReturnValue:
     if customer_id <= 0:
         return ReturnValue.BAD_PARAMS
 
-    _query = sql.SQL(f"DELETE FROM {M.C.TABLE_NAME} WHERE {M.C.id}={{ID}}").format(
+    _query = sql.SQL(f"DELETE FROM {M_C_TABLE_NAME} WHERE {M_C_id}={{ID}}").format(
         ID=sql.Literal(customer_id),
     )
     try:
@@ -309,7 +295,7 @@ def owner_owns_apartment(owner_id: int, apartment_id: int) -> ReturnValue:
         return ReturnValue.BAD_PARAMS
 
     _query = sql.SQL(
-        f"INSERT INTO {M.OwnedBy.TABLE_NAME}({M.OwnedBy.owner_id}, {M.OwnedBy.house_id}) VALUES({{OWNER_ID}}, {{HOUSE_ID}})").format(
+        f"INSERT INTO {M_OwnedBy_TABLE_NAME}({M_OwnedBy_owner_id}, {M_OwnedBy_house_id}) VALUES({{OWNER_ID}}, {{HOUSE_ID}})").format(
         OWNER_ID=sql.Literal(owner_id),
         HOUSE_ID=sql.Literal(apartment_id)
     )
@@ -325,7 +311,7 @@ def owner_drops_apartment(owner_id: int, apartment_id: int) -> ReturnValue:
         return ReturnValue.BAD_PARAMS
 
     _query = sql.SQL(
-        f"DELETE FROM {M.OwnedBy.TABLE_NAME} WHERE {M.OwnedBy.owner_id}={{OWNER_ID}} AND {M.OwnedBy.house_id}={{HOUSE_ID}}").format(
+        f"DELETE FROM {M_OwnedBy_TABLE_NAME} WHERE {M_OwnedBy_owner_id}={{OWNER_ID}} AND {M_OwnedBy_house_id}={{HOUSE_ID}}").format(
         OWNER_ID=sql.Literal(owner_id),
         HOUSE_ID=sql.Literal(apartment_id)
     )
@@ -338,10 +324,10 @@ def owner_drops_apartment(owner_id: int, apartment_id: int) -> ReturnValue:
 
 def get_owner_apartments(owner_id: int) -> List[Apartment]:
     _query = sql.SQL(
-        f"SELECT * FROM {M.OwnedBy.TABLE_NAME} "
-        f"LEFT OUTER JOIN {M.A.TABLE_NAME} ON "
-        f"{M.OwnedBy.house_id}={M.A.id} "
-        f"WHERE {M.OwnedBy.owner_id}={{ID}} "
+        f"SELECT * FROM {M_OwnedBy_TABLE_NAME} "
+        f"LEFT OUTER JOIN {M_A_TABLE_NAME} ON "
+        f"{M_OwnedBy_house_id}={M_A_id} "
+        f"WHERE {M_OwnedBy_owner_id}={{ID}} "
     ).format(ID=sql.Literal(owner_id), )
 
     try:
@@ -356,7 +342,7 @@ def get_owner_apartments(owner_id: int) -> List[Apartment]:
 
 def get_apartment_owner(apartment_id: int) -> Owner:
     _query = sql.SQL(
-        f"SELECT * FROM {M.OwnedBy.TABLE_NAME} LEFT OUTER JOIN {M.O.TABLE_NAME} ON {M.OwnedBy.owner_id} = {M.O.id} WHERE {M.OwnedBy.house_id}={{ID}}").format(
+        f"SELECT * FROM {M_OwnedBy_TABLE_NAME} LEFT OUTER JOIN {M_O_TABLE_NAME} ON {M_OwnedBy_owner_id} = {M_O_id} WHERE {M_OwnedBy_house_id}={{ID}}").format(
         ID=sql.Literal(apartment_id),
     )
 
@@ -375,10 +361,10 @@ def customer_made_reservation(customer_id: int, apartment_id: int, start_date: d
     if customer_id <= 0 or apartment_id <= 0 or total_price <= 0:
         return ReturnValue.BAD_PARAMS
 
-    _query = sql.SQL(f"INSERT INTO {M.Res.TABLE_NAME} "
-                     f"SELECT {{{M.Res.cid}}}, {{{M.Res.hid}}}, {{{M.Res.start_date}}}, {{{M.Res.end_date}}}, {{{M.Res.total_price}}} "
-                     f"WHERE NOT EXISTS (SELECT 1 FROM {M.Res.TABLE_NAME} AS Res WHERE {{{M.Res.hid}}} = Res.{M.Res.hid} AND "
-                     f"({{{M.Res.start_date}}}, {{{M.Res.end_date}}}) OVERLAPS (Res.{M.Res.start_date}, Res.{M.Res.end_date}))").format(
+    _query = sql.SQL(f"INSERT INTO {M_Res_TABLE_NAME} "
+                     f"SELECT {{{M_Res_cid}}}, {{{M_Res_hid}}}, {{{M_Res_start_date}}}, {{{M_Res_end_date}}}, {{{M_Res_total_price}}} "
+                     f"WHERE NOT EXISTS (SELECT 1 FROM {M_Res_TABLE_NAME} AS Res WHERE {{{M_Res_hid}}} = Res.{M_Res_hid} AND "
+                     f"({{{M_Res_start_date}}}, {{{M_Res_end_date}}}) OVERLAPS (Res.{M_Res_start_date}, Res.{M_Res_end_date}))").format(
         customer_id=sql.Literal(customer_id),
         apartment_id=sql.Literal(apartment_id),
         start_date=sql.Literal(start_date),
@@ -397,7 +383,7 @@ def customer_cancelled_reservation(customer_id: int, apartment_id: int, start_da
         return ReturnValue.BAD_PARAMS
 
     _query = sql.SQL(
-        f"DELETE FROM {M.Res.TABLE_NAME} WHERE {M.Res.cid}={{CID}} AND {M.Res.hid}={{HID}} AND {M.Res.start_date}={{START_DATE}}"
+        f"DELETE FROM {M_Res_TABLE_NAME} WHERE {M_Res_cid}={{CID}} AND {M_Res_hid}={{HID}} AND {M_Res_start_date}={{START_DATE}}"
     ).format(
         CID=sql.Literal(customer_id),
         HID=sql.Literal(apartment_id),
@@ -417,12 +403,12 @@ def customer_reviewed_apartment(customer_id: int, apartment_id: int, review_date
         return ReturnValue.BAD_PARAMS
 
     _query = sql.SQL(
-        f"INSERT INTO {M.Rev.TABLE_NAME} "
+        f"INSERT INTO {M_Rev_TABLE_NAME} "
         f"SELECT {{cid}}, {{hid}}, {{DATE}}, {{RATING}}, {{TEXT}} "
-        f"WHERE EXISTS (SELECT 1 FROM {M.Res.TABLE_NAME} AS Res "
-        f"WHERE {M.Rev.hid} = {{hid}} "
-        f"AND Res.{M.Res.end_date} <= {{DATE}} "
-        f"AND {M.Rev.cid} = {{cid}} )"
+        f"WHERE EXISTS (SELECT 1 FROM {M_Res_TABLE_NAME} AS Res "
+        f"WHERE {M_Rev_hid} = {{hid}} "
+        f"AND Res.{M_Res_end_date} <= {{DATE}} "
+        f"AND {M_Rev_cid} = {{cid}} )"
     ).format(
         cid=sql.Literal(customer_id),
         hid=sql.Literal(apartment_id),
@@ -448,12 +434,12 @@ def customer_updated_review(customer_id: int, apartment_id: int, update_date: da
         return ReturnValue.BAD_PARAMS
 
     _query = sql.SQL(
-        f"UPDATE {M.Rev.TABLE_NAME} "
+        f"UPDATE {M_Rev_TABLE_NAME} "
         f" SET "
-        f" {M.Rev.rating}={{RATING}},"
-        f" {M.Rev.review_text}={{TEXT}},"
-        f" {M.Rev.review_date}={{DATE}}"  # TODO: do we need to update time or override? and constrain update date > date 
-        f" WHERE {M.Rev.cid}={{CID}} AND {M.Rev.hid}={{HID}} AND {M.Rev.review_date} <= {{DATE}}"
+        f" {M_Rev_rating}={{RATING}},"
+        f" {M_Rev_review_text}={{TEXT}},"
+        f" {M_Rev_review_date}={{DATE}}"  # TODO: do we need to update time or override? and constrain update date > date 
+        f" WHERE {M_Rev_cid}={{CID}} AND {M_Rev_hid}={{HID}} AND {M_Rev_review_date} <= {{DATE}}"
     ).format(
         CID=sql.Literal(customer_id),
         HID=sql.Literal(apartment_id),
@@ -470,18 +456,18 @@ def customer_updated_review(customer_id: int, apartment_id: int, update_date: da
 
 def reservations_per_owner() -> List[Tuple[str, int]]:
     _query = sql.SQL(
-        f"SELECT {M.O.TABLE_NAME}.{M.O.name}, {M.O.TABLE_NAME}.{M.O.id}, COUNT ({M.Res.TABLE_NAME}.{M.Res.total_price}) as res_count"
+        f"SELECT {M_O_TABLE_NAME}.{M_O_name}, {M_O_TABLE_NAME}.{M_O_id}, COUNT ({M_Res_TABLE_NAME}.{M_Res_total_price}) as res_count"
 
-        f" FROM {M.O.TABLE_NAME} "
+        f" FROM {M_O_TABLE_NAME} "
 
-        f" LEFT OUTER JOIN {M.OwnedBy.TABLE_NAME} "
-        f" ON {M.OwnedBy.TABLE_NAME}.{M.OwnedBy.owner_id} = {M.O.TABLE_NAME}.{M.O.id} "
+        f" LEFT OUTER JOIN {M_OwnedBy_TABLE_NAME} "
+        f" ON {M_OwnedBy_TABLE_NAME}.{M_OwnedBy_owner_id} = {M_O_TABLE_NAME}.{M_O_id} "
 
-        f" LEFT OUTER JOIN {M.Res.TABLE_NAME} "
-        f" ON {M.Res.TABLE_NAME}.{M.Res.hid} = {M.OwnedBy.TABLE_NAME}.{M.OwnedBy.house_id} "
+        f" LEFT OUTER JOIN {M_Res_TABLE_NAME} "
+        f" ON {M_Res_TABLE_NAME}.{M_Res_hid} = {M_OwnedBy_TABLE_NAME}.{M_OwnedBy_house_id} "
 
 
-        f" GROUP BY {M.O.TABLE_NAME}.{M.O.id}, {M.O.TABLE_NAME}.{M.O.name}"
+        f" GROUP BY {M_O_TABLE_NAME}.{M_O_id}, {M_O_TABLE_NAME}.{M_O_name}"
     )
 
     try:
@@ -489,18 +475,18 @@ def reservations_per_owner() -> List[Tuple[str, int]]:
     except _Ex as e:
         return e.error_code
 
-    return [(r[M.C.name], r['res_count']) for r in result]
+    return [(r[M_C_name], r['res_count']) for r in result]
 
 
 def get_top_customer() -> Customer:
     _query = sql.SQL(
-        f"SELECT {M.C.id}, {M.C.name}, COUNT ({M.C.id})"
+        f"SELECT {M_C_id}, {M_C_name}, COUNT ({M_C_id})"
 
-        f" FROM {M.Res.TABLE_NAME} "
-        f" LEFT OUTER JOIN {M.C.TABLE_NAME} "
-        f" ON {M.Res.TABLE_NAME}.{M.Res.cid} = {M.C.TABLE_NAME}.{M.C.id} "
-        f" GROUP BY {M.C.TABLE_NAME}.{M.C.id}"
-        f" ORDER BY count DESC, {M.C.id} "
+        f" FROM {M_Res_TABLE_NAME} "
+        f" LEFT OUTER JOIN {M_C_TABLE_NAME} "
+        f" ON {M_Res_TABLE_NAME}.{M_Res_cid} = {M_C_TABLE_NAME}.{M_C_id} "
+        f" GROUP BY {M_C_TABLE_NAME}.{M_C_id}"
+        f" ORDER BY count DESC, {M_C_id} "
         f" LIMIT 1"
     )
 
@@ -624,10 +610,10 @@ def get_apartment_rating(apartment_id: int) -> float:
     # must use view (the same view as get_owner_rating and get_apartment_rating)
 
     _query = sql.SQL(
-        f"SELECT AVG({M.RevView.rating}) as avg_rating"
-        f" FROM {M.RevView.TABLE_NAME}"
-        f" WHERE {M.RevView.house_id} = {{HID}}"
-        f" GROUP BY {M.RevView.house_id}").format(
+        f"SELECT AVG({M_RevView_rating}) as avg_rating"
+        f" FROM {M_RevView_TABLE_NAME}"
+        f" WHERE {M_RevView_house_id} = {{HID}}"
+        f" GROUP BY {M_RevView_house_id}").format(
         HID=sql.Literal(apartment_id)
     )
 
@@ -652,9 +638,9 @@ def get_owner_rating(owner_id: int) -> float:
         f" SELECT COALESCE(AVG(average_rating),0) as avg_owner_rating "
         f" FROM ViewAptRating "
         f" WHERE EXISTS ("
-        f" SELECT 1 FROM {M.OwnedBy.TABLE_NAME} WHERE "
-        f" {M.OwnedBy.TABLE_NAME}.{M.OwnedBy.house_id}=ViewAptRating.{M.OwnedBy.house_id} "
-        f" AND {M.OwnedBy.TABLE_NAME}.{M.OwnedBy.owner_id}={{OID}}"
+        f" SELECT 1 FROM {M_OwnedBy_TABLE_NAME} WHERE "
+        f" {M_OwnedBy_TABLE_NAME}.{M_OwnedBy_house_id}=ViewAptRating.{M_OwnedBy_house_id} "
+        f" AND {M_OwnedBy_TABLE_NAME}.{M_OwnedBy_owner_id}={{OID}}"
         f" )").format(
         OID=sql.Literal(owner_id)
     )
@@ -716,68 +702,68 @@ def get_apartment_recommendation(customer_id: int) -> List[Tuple[Apartment, floa
 # ---------------------------------- 5.1 Basic Database Functions ----------------------------------
 
 
-ALL_TABLES = [M.Rev.TABLE_NAME, M.Res.TABLE_NAME, M.OwnedBy.TABLE_NAME, M.C.TABLE_NAME, M.A.TABLE_NAME, M.O.TABLE_NAME,
+ALL_TABLES = [M_Rev_TABLE_NAME, M_Res_TABLE_NAME, M_OwnedBy_TABLE_NAME, M_C_TABLE_NAME, M_A_TABLE_NAME, M_O_TABLE_NAME,
               ]
 
-ALL_VIEWS = ["ViewAptRating", 'ViewPricePerNight', "ViewAptValue", M.RevView.TABLE_NAME]
+ALL_VIEWS = ["ViewAptRating", 'ViewPricePerNight', "ViewAptValue", M_RevView_TABLE_NAME]
 
 
 def create_tables():
     quries = [
-        f"CREATE TABLE {M.O.TABLE_NAME}("  # Owner
-        f"{M.O.id} INTEGER PRIMARY KEY CHECK ({M.O.id} > 0),"
-        f" {M.O.name} TEXT NOT NULL)"
+        f"CREATE TABLE {M_O_TABLE_NAME}("  # Owner
+        f"{M_O_id} INTEGER PRIMARY KEY CHECK ({M_O_id} > 0),"
+        f" {M_O_name} TEXT NOT NULL)"
         ,
 
-        f"CREATE TABLE {M.C.TABLE_NAME}("
-        f"{M.C.id} INTEGER PRIMARY KEY CHECK ({M.C.id} > 0),"
-        f" {M.C.name} TEXT NOT NULL)",
+        f"CREATE TABLE {M_C_TABLE_NAME}("
+        f"{M_C_id} INTEGER PRIMARY KEY CHECK ({M_C_id} > 0),"
+        f" {M_C_name} TEXT NOT NULL)",
 
-        f"CREATE TABLE {M.A.TABLE_NAME}("
-        f" {M.A.id} INTEGER PRIMARY KEY CHECK ({M.A.id} > 0),"
-        f" {M.A.address} TEXT NOT NULL,"
-        f" {M.A.city} TEXT NOT NULL,"
-        f" {M.A.country} TEXT NOT NULL,"
-        f" {M.A.size} int NOT NULL,"
-        f" UNIQUE({M.A.city}, {M.A.address})"
+        f"CREATE TABLE {M_A_TABLE_NAME}("
+        f" {M_A_id} INTEGER PRIMARY KEY CHECK ({M_A_id} > 0),"
+        f" {M_A_address} TEXT NOT NULL,"
+        f" {M_A_city} TEXT NOT NULL,"
+        f" {M_A_country} TEXT NOT NULL,"
+        f" {M_A_size} int NOT NULL,"
+        f" UNIQUE({M_A_city}, {M_A_address})"
         f")",
 
-        f"CREATE TABLE {M.OwnedBy.TABLE_NAME}("
-        f"{M.OwnedBy.owner_id} INTEGER NOT NULL,"
-        f" {M.OwnedBy.house_id} INTEGER NOT NULL,"
-        f" PRIMARY KEY({M.OwnedBy.house_id}),"
-        f"FOREIGN KEY ({M.OwnedBy.owner_id}) REFERENCES {M.O.TABLE_NAME}({M.O.id} ) ON DELETE CASCADE ,"
-        f"FOREIGN KEY ({M.OwnedBy.house_id}) REFERENCES {M.A.TABLE_NAME}({M.A.id} ) ON DELETE CASCADE "
+        f"CREATE TABLE {M_OwnedBy_TABLE_NAME}("
+        f"{M_OwnedBy_owner_id} INTEGER NOT NULL,"
+        f" {M_OwnedBy_house_id} INTEGER NOT NULL,"
+        f" PRIMARY KEY({M_OwnedBy_house_id}),"
+        f"FOREIGN KEY ({M_OwnedBy_owner_id}) REFERENCES {M_O_TABLE_NAME}({M_O_id} ) ON DELETE CASCADE ,"
+        f"FOREIGN KEY ({M_OwnedBy_house_id}) REFERENCES {M_A_TABLE_NAME}({M_A_id} ) ON DELETE CASCADE "
         f")",
 
-        f"CREATE TABLE {M.Res.TABLE_NAME}("
-        f" {M.Res.cid} INTEGER NOT NULL,"
-        f" {M.Res.hid} INTEGER NOT NULL,"
-        f" {M.Res.start_date} DATE NOT NULL,"
-        f" {M.Res.end_date} DATE NOT NULL,"
-        f" {M.Res.total_price} FLOAT NOT NULL,"
-        f" PRIMARY KEY({M.Res.hid}, {M.Res.start_date}, {M.Res.end_date}),"
-        f" FOREIGN KEY ({M.Res.cid}) REFERENCES {M.C.TABLE_NAME}({M.C.id} ) ON DELETE CASCADE ,"
-        f" FOREIGN KEY ({M.Res.hid}) REFERENCES {M.A.TABLE_NAME}({M.A.id} ) ON DELETE CASCADE "
+        f"CREATE TABLE {M_Res_TABLE_NAME}("
+        f" {M_Res_cid} INTEGER NOT NULL,"
+        f" {M_Res_hid} INTEGER NOT NULL,"
+        f" {M_Res_start_date} DATE NOT NULL,"
+        f" {M_Res_end_date} DATE NOT NULL,"
+        f" {M_Res_total_price} FLOAT NOT NULL,"
+        f" PRIMARY KEY({M_Res_hid}, {M_Res_start_date}, {M_Res_end_date}),"
+        f" FOREIGN KEY ({M_Res_cid}) REFERENCES {M_C_TABLE_NAME}({M_C_id} ) ON DELETE CASCADE ,"
+        f" FOREIGN KEY ({M_Res_hid}) REFERENCES {M_A_TABLE_NAME}({M_A_id} ) ON DELETE CASCADE "
         f")",
 
-        f"CREATE TABLE {M.Rev.TABLE_NAME}("
-        f" {M.Rev.cid} INTEGER NOT NULL,"
-        f" {M.Rev.hid} INTEGER NOT NULL,"
-        f" {M.Rev.review_date} DATE NOT NULL,"
-        f" {M.Rev.rating} INTEGER NOT NULL,"
-        f" {M.Rev.review_text} TEXT NOT NULL,"
-        f" PRIMARY KEY({M.Rev.cid}, {M.Rev.hid}),"
-        f" FOREIGN KEY ({M.Rev.cid}) REFERENCES {M.C.TABLE_NAME}({M.C.id} ) ON DELETE CASCADE ,"
-        f" FOREIGN KEY ({M.Rev.hid}) REFERENCES {M.A.TABLE_NAME}({M.A.id} ) ON DELETE CASCADE "
+        f"CREATE TABLE {M_Rev_TABLE_NAME}("
+        f" {M_Rev_cid} INTEGER NOT NULL,"
+        f" {M_Rev_hid} INTEGER NOT NULL,"
+        f" {M_Rev_review_date} DATE NOT NULL,"
+        f" {M_Rev_rating} INTEGER NOT NULL,"
+        f" {M_Rev_review_text} TEXT NOT NULL,"
+        f" PRIMARY KEY({M_Rev_cid}, {M_Rev_hid}),"
+        f" FOREIGN KEY ({M_Rev_cid}) REFERENCES {M_C_TABLE_NAME}({M_C_id} ) ON DELETE CASCADE ,"
+        f" FOREIGN KEY ({M_Rev_hid}) REFERENCES {M_A_TABLE_NAME}({M_A_id} ) ON DELETE CASCADE "
         f")",
 
-        f"CREATE VIEW {M.RevView.TABLE_NAME} "
+        f"CREATE VIEW {M_RevView_TABLE_NAME} "
         f" AS"
-        f" SELECT {M.Rev.TABLE_NAME}.{M.Rev.hid}, {M.OwnedBy.owner_id}, {M.Rev.rating}"
-        f" FROM {M.Rev.TABLE_NAME}"
-        f" LEFT OUTER JOIN {M.OwnedBy.TABLE_NAME}"
-        f" ON {M.Rev.TABLE_NAME}.{M.Rev.hid} = {M.OwnedBy.TABLE_NAME}.{M.OwnedBy.house_id} ",
+        f" SELECT {M_Rev_TABLE_NAME}.{M_Rev_hid}, {M_OwnedBy_owner_id}, {M_Rev_rating}"
+        f" FROM {M_Rev_TABLE_NAME}"
+        f" LEFT OUTER JOIN {M_OwnedBy_TABLE_NAME}"
+        f" ON {M_Rev_TABLE_NAME}.{M_Rev_hid} = {M_OwnedBy_TABLE_NAME}.{M_OwnedBy_house_id} ",
 
         f""" CREATE VIEW ViewAptRating AS
         SELECT 
@@ -802,11 +788,11 @@ GROUP BY
         f"CREATE VIEW ViewPricePerNight "
         f" AS "
         f" SELECT "
-        f" {M.Res.hid},"
-        f" AVG( {M.Res.total_price} / (1+{M.Res.end_date}-{M.Res.start_date}) ) as avg_price_per_night"
+        f" {M_Res_hid},"
+        f" AVG( {M_Res_total_price} / (1+{M_Res_end_date}-{M_Res_start_date}) ) as avg_price_per_night"
         f" FROM"
-        f" {M.Res.TABLE_NAME} "
-        f" GROUP BY {M.Res.hid}",
+        f" {M_Res_TABLE_NAME} "
+        f" GROUP BY {M_Res_hid}",
 
         f"CREATE VIEW ViewAptValue "
         f" AS"
