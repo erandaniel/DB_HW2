@@ -582,22 +582,32 @@ def get_all_location_owners() -> List[Owner]:
 
 
 def best_value_for_money() -> Apartment:
-    # TODO: make this query look nicer
-    _query = sql.SQL(
-        f"""
-        SELECT * FROM (
-        SELECT reservations.apartment_id, AVG(rating)/(SUM(total_price)/SUM(end_date-start_date)) as value
-        	FROM public.reservations
-        	LEFT OUTER JOIN public.reviews 
-        	ON reservations.apartment_id = reviews.apartment_id
-        	GROUP BY reservations.apartment_id
-        	ORDER BY value 
-        	LIMIT 1
-        ) as A
-        LEFT OUTER JOIN public.apartment
-        ON A.apartment_id = apartment.id
-        """
-    )
+    # TODO: rating are counted more than once if someone made more than one reservation
+    _query = sql.SQL(f""" SELECT * FROM
+ (SELECT * FROM viewaptvalue  WHERE value>= 0 ORDER BY VALUE DESC LIMIT 1) AS BEST
+ LEFT JOIN
+ Apartment 
+ ON Apartment.id = BEST.apartment_id
+        """)
+    #     f"""
+    # SELECT * FROM (
+    #    SELECT * FROM (SELECT DISTINCT reservations.apartment_id,
+	# 				  AVG(rating) AS RATE,
+	# 				  SUM(total_price),
+	# 				  SUM(1+end_date-start_date) AS NIGHTS2 ,
+	# 				  COALESCE(AVG(rating)/(SUM(total_price)/SUM(1+end_date-start_date)),0) as value
+    #     	FROM public.reservations
+    #     	LEFT JOIN public.reviews
+    #     	ON reservations.apartment_id = reviews.apartment_id AND reservations.customer_id = reviews.customer_id
+    #     	GROUP BY reservations.apartment_id
+	# 		)
+	# 		WHERE value >= 0
+    #     ) as A
+    #     LEFT OUTER JOIN public.apartment
+    #     ON A.apartment_id = apartment.id
+	# 	ORDER BY value DESC
+    #     LIMIT 1
+    #     """
 
     try:
         rows_effected, result = _get(_query)
@@ -639,7 +649,7 @@ def get_owner_rating(owner_id: int) -> float:
         return 0
 
     _query = sql.SQL(
-        f" SELECT COALESCE(AVG(average),0) as avg_owner_rating "
+        f" SELECT COALESCE(AVG(average_rating),0) as avg_owner_rating "
         f" FROM ViewAptRating "
         f" WHERE EXISTS ("
         f" SELECT 1 FROM {M.OwnedBy.TABLE_NAME} WHERE "
@@ -697,8 +707,8 @@ GROUP BY apartment_id, AVG_DIST_RATIO
 # ---------------------------------- 5.1 Basic Database Functions ----------------------------------
 
 
-ALL_TABLES = [M.A.TABLE_NAME, M.C.TABLE_NAME, M.O.TABLE_NAME, M.OwnedBy.TABLE_NAME,
-              M.Rev.TABLE_NAME, M.Res.TABLE_NAME]
+ALL_TABLES = [M.Rev.TABLE_NAME, M.Res.TABLE_NAME, M.OwnedBy.TABLE_NAME, M.A.TABLE_NAME, M.C.TABLE_NAME, M.O.TABLE_NAME,
+              ]
 
 
 def create_tables():
@@ -759,16 +769,51 @@ def create_tables():
         f" LEFT OUTER JOIN {M.OwnedBy.TABLE_NAME}"
         f" ON {M.Rev.TABLE_NAME}.{M.Rev.hid} = {M.OwnedBy.TABLE_NAME}.{M.OwnedBy.house_id} ",
 
-        f"CREATE VIEW ViewAptRating "
-        f" AS"
-        f" SELECT {M.OwnedBy.TABLE_NAME}.{M.OwnedBy.owner_id}, {M.OwnedBy.TABLE_NAME}.{M.OwnedBy.house_id}, AVG(COALESCE(rating, 0)) AS average"
-        f" FROM {M.OwnedBy.TABLE_NAME}"
-        f" LEFT OUTER JOIN {M.Rev.TABLE_NAME}"
-        f" ON {M.Rev.TABLE_NAME}.{M.Rev.hid} = {M.OwnedBy.TABLE_NAME}.{M.OwnedBy.house_id} "
-        f" GROUP BY {M.OwnedBy.TABLE_NAME}.{M.OwnedBy.house_id}",
+        # f"CREATE VIEW ViewAptRating "
+        # f" AS"
+        # f" SELECT {M.OwnedBy.TABLE_NAME}.{M.OwnedBy.owner_id}, {M.OwnedBy.TABLE_NAME}.{M.OwnedBy.house_id}, AVG(COALESCE(rating, 0)) AS average_rating"
+        # f" FROM ( SELECT * FROM {M.A.TABLE_NAME} LEFT OUTER JOIN {M.OwnedBy.TABLE_NAME} ON {M.A.TABLE_NAME}.{M.A.id}={M.OwnedBy.TABLE_NAME}.{M.OwnedBy.house_id}"
+        # f" LEFT OUTER JOIN {M.Rev.TABLE_NAME}"
+        # f" ON {M.Rev.TABLE_NAME}.{M.Rev.hid} = {M.OwnedBy.TABLE_NAME}.{M.OwnedBy.house_id} "
+        # f" GROUP BY {M.OwnedBy.TABLE_NAME}.{M.OwnedBy.house_id}",
 
-        # TODO: add contains for all tables
-        # TODO: make sure the review date is after reservation have ended
+        f""" CREATE VIEW ViewAptRating AS
+        SELECT 
+    A.owner_id, 
+    A.apartment_id, 
+    AVG(COALESCE(R.rating, 0)) AS average_rating 
+FROM 
+    (SELECT 
+        O.owner_id, 
+        A.ID AS apartment_id 
+    FROM 
+        Apartment A 
+    LEFT JOIN 
+        OwnedBy O ON A.ID = O.apartment_id) AS A 
+LEFT JOIN 
+    Reviews R ON A.apartment_id = R.apartment_id 
+GROUP BY 
+    A.owner_id, 
+    A.apartment_id;
+"""
+        
+        f"CREATE VIEW ViewPricePerNight "
+        f" AS "
+        f" SELECT "
+        f" {M.Res.hid},"
+        f" AVG( {M.Res.total_price} / (1+{M.Res.end_date}-{M.Res.start_date}) ) as avg_price_per_night"
+        f" FROM"
+        f" {M.Res.TABLE_NAME} "
+        f" GROUP BY {M.Res.hid}",
+
+
+
+        f"CREATE VIEW ViewAptValue "
+        f" AS"
+        f" SELECT "
+        f" viewaptrating.apartment_id, average_rating/avg_price_per_night as value"
+        f" FROM viewpricepernight LEFT JOIN viewaptrating" 
+        f" on viewpricepernight.apartment_id=viewaptrating.apartment_id",
     ]
 
     for q in quries:
@@ -788,7 +833,7 @@ def create_tables():
 def clear_tables():
     for table in ALL_TABLES:
         conn = Connector.DBConnector()
-        query = f"DELETE FROM {table}"
+        query = f"DELETE FROM {table} CASCADE"
         try:
             conn.execute(query)
         except Exception as e:
