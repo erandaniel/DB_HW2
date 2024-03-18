@@ -719,7 +719,9 @@ def get_apartment_recommendation(customer_id: int) -> List[Tuple[Apartment, floa
 ALL_TABLES = [M.Rev.TABLE_NAME, M.Res.TABLE_NAME, M.OwnedBy.TABLE_NAME, M.C.TABLE_NAME, M.A.TABLE_NAME, M.O.TABLE_NAME,
               ]
 
-ALL_VIEWS = ["ViewAptRating",'ViewPricePerNight', "ViewAptValue", M.RevView.TABLE_NAME]
+ALL_VIEWS = ["ViewAptRating", 'ViewPricePerNight', "ViewAptValue", M.RevView.TABLE_NAME]
+
+
 def create_tables():
     quries = [
         f"CREATE TABLE {M.O.TABLE_NAME}("  # Owner
@@ -830,32 +832,37 @@ GROUP BY
 
 def clear_tables():
     conn = None
-    try:
-        conn = Connector.DBConnector()
-        for table in ALL_TABLES:
+    for table in ALL_TABLES:
+        try:
+            conn = Connector.DBConnector()
             query = f"DELETE FROM {table}"
             conn.execute(query)
-    except Exception as e:
-        print(e)
-    finally:
-        if conn:
+        except Exception as e:
+            print(e)
+        finally:
             conn.close()
 
 
 def drop_tables():
     conn = None
-    try:
-        conn = Connector.DBConnector()
-        for table in ALL_TABLES:
+    for table in ALL_TABLES:
+        try:
+            conn = Connector.DBConnector()
             query = f"DROP TABLE {table} CASCADE"
             conn.execute(query)
-        for v in ALL_VIEWS:
+        except Exception as e:
+            print(e)
+        finally:
+            conn.close()
+
+    for v in ALL_VIEWS:
+        try:
+            conn = Connector.DBConnector()
             query = f"DROP VIEW {v}"
             conn.execute(query)
-    except Exception as e:
-        print(e)
-    finally:
-        if conn:
+        except Exception as e:
+            print(e)
+        finally:
             conn.close()
 
 
