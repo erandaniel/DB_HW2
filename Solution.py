@@ -728,25 +728,24 @@ def create_tables():
         ,
 
         f"CREATE TABLE {M.C.TABLE_NAME}("
-        f"{M.C.id} INTEGER PRIMARY KEY,"
+        f"{M.C.id} INTEGER PRIMARY KEY CHECK ({M.C.id} > 0),"
         f" {M.C.name} TEXT NOT NULL)",
 
         f"CREATE TABLE {M.A.TABLE_NAME}("
-        f" {M.A.id} INTEGER UNIQUE,"
+        f" {M.A.id} INTEGER PRIMARY KEY CHECK ({M.A.id} > 0),"
         f" {M.A.address} TEXT NOT NULL,"
         f" {M.A.city} TEXT NOT NULL,"
         f" {M.A.country} TEXT NOT NULL,"
         f" {M.A.size} int NOT NULL,"
-        f" PRIMARY KEY({M.A.city}, {M.A.address})"
-        # f" PRIMARY KEY({M.A.id})"
+        f" UNIQUE({M.A.city}, {M.A.address})"
         f")",
 
         f"CREATE TABLE {M.OwnedBy.TABLE_NAME}("
         f"{M.OwnedBy.owner_id} INTEGER NOT NULL,"
         f" {M.OwnedBy.house_id} INTEGER NOT NULL,"
         f" PRIMARY KEY({M.OwnedBy.house_id}),"
-        f"FOREIGN KEY ({M.OwnedBy.owner_id}) REFERENCES {M.O.TABLE_NAME}({M.O.id}),"
-        f"FOREIGN KEY ({M.OwnedBy.house_id}) REFERENCES {M.A.TABLE_NAME}({M.A.id})"
+        f"FOREIGN KEY ({M.OwnedBy.owner_id}) REFERENCES {M.O.TABLE_NAME}({M.O.id} ) ON DELETE CASCADE ,"
+        f"FOREIGN KEY ({M.OwnedBy.house_id}) REFERENCES {M.A.TABLE_NAME}({M.A.id} ) ON DELETE CASCADE "
         f")",
 
         f"CREATE TABLE {M.Res.TABLE_NAME}("
@@ -756,8 +755,8 @@ def create_tables():
         f" {M.Res.end_date} DATE NOT NULL,"
         f" {M.Res.total_price} FLOAT NOT NULL,"
         f" PRIMARY KEY({M.Res.hid}, {M.Res.start_date}, {M.Res.end_date}),"
-        f" FOREIGN KEY ({M.Res.cid}) REFERENCES {M.C.TABLE_NAME}({M.C.id}),"
-        f" FOREIGN KEY ({M.Res.hid}) REFERENCES {M.A.TABLE_NAME}({M.A.id})"
+        f" FOREIGN KEY ({M.Res.cid}) REFERENCES {M.C.TABLE_NAME}({M.C.id} ) ON DELETE CASCADE ,"
+        f" FOREIGN KEY ({M.Res.hid}) REFERENCES {M.A.TABLE_NAME}({M.A.id} ) ON DELETE CASCADE "
         f")",
 
         f"CREATE TABLE {M.Rev.TABLE_NAME}("
@@ -767,8 +766,8 @@ def create_tables():
         f" {M.Rev.rating} INTEGER NOT NULL,"
         f" {M.Rev.review_text} TEXT NOT NULL,"
         f" PRIMARY KEY({M.Rev.cid}, {M.Rev.hid}),"
-        f" FOREIGN KEY ({M.Rev.cid}) REFERENCES {M.C.TABLE_NAME}({M.C.id}),"
-        f" FOREIGN KEY ({M.Rev.hid}) REFERENCES {M.A.TABLE_NAME}({M.A.id})"
+        f" FOREIGN KEY ({M.Rev.cid}) REFERENCES {M.C.TABLE_NAME}({M.C.id} ) ON DELETE CASCADE ,"
+        f" FOREIGN KEY ({M.Rev.hid}) REFERENCES {M.A.TABLE_NAME}({M.A.id} ) ON DELETE CASCADE "
         f")",
 
         f"CREATE VIEW {M.RevView.TABLE_NAME} "
@@ -777,14 +776,6 @@ def create_tables():
         f" FROM {M.Rev.TABLE_NAME}"
         f" LEFT OUTER JOIN {M.OwnedBy.TABLE_NAME}"
         f" ON {M.Rev.TABLE_NAME}.{M.Rev.hid} = {M.OwnedBy.TABLE_NAME}.{M.OwnedBy.house_id} ",
-
-        # f"CREATE VIEW ViewAptRating "
-        # f" AS"
-        # f" SELECT {M.OwnedBy.TABLE_NAME}.{M.OwnedBy.owner_id}, {M.OwnedBy.TABLE_NAME}.{M.OwnedBy.house_id}, AVG(COALESCE(rating, 0)) AS average_rating"
-        # f" FROM ( SELECT * FROM {M.A.TABLE_NAME} LEFT OUTER JOIN {M.OwnedBy.TABLE_NAME} ON {M.A.TABLE_NAME}.{M.A.id}={M.OwnedBy.TABLE_NAME}.{M.OwnedBy.house_id}"
-        # f" LEFT OUTER JOIN {M.Rev.TABLE_NAME}"
-        # f" ON {M.Rev.TABLE_NAME}.{M.Rev.hid} = {M.OwnedBy.TABLE_NAME}.{M.OwnedBy.house_id} "
-        # f" GROUP BY {M.OwnedBy.TABLE_NAME}.{M.OwnedBy.house_id}",
 
         f""" CREATE VIEW ViewAptRating AS
         SELECT 
@@ -805,7 +796,7 @@ GROUP BY
     A.owner_id, 
     A.apartment_id;
 """
-        
+
         f"CREATE VIEW ViewPricePerNight "
         f" AS "
         f" SELECT "
@@ -815,13 +806,11 @@ GROUP BY
         f" {M.Res.TABLE_NAME} "
         f" GROUP BY {M.Res.hid}",
 
-
-
         f"CREATE VIEW ViewAptValue "
         f" AS"
         f" SELECT "
         f" viewaptrating.apartment_id, average_rating/avg_price_per_night as value"
-        f" FROM viewpricepernight LEFT JOIN viewaptrating" 
+        f" FROM viewpricepernight LEFT JOIN viewaptrating"
         f" on viewpricepernight.apartment_id=viewaptrating.apartment_id",
     ]
 
