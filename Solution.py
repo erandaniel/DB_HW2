@@ -674,43 +674,52 @@ def get_owner_rating(owner_id: int) -> float:
 
 
 def get_apartment_recommendation(customer_id: int) -> List[Tuple[Apartment, float]]:
-    # TODO: implement almost done
-    temp_query = f"""
-SELECT   apartment_id, AVG(rating),  AVG_DIST_RATIO , SUM(rating)*AVG_DIST_RATIO AS EXPECTED FROM
-(SELECT C.customer_id, public.reviews.customer_id AS REVIWER, AVG_DIST_RATIO, apartment_id, rating FROM
-(SELECT customer_id, AVG(DIST_RATIO) AS AVG_DIST_RATIO FROM
-(SELECT DISTINCT *, rating/RATING_AVG_EXCLUSING AS DIST_RATIO FROM   
-(SELECT 
-	apartment_id,
-	COUNT(rating) as RATERS_EXCLUDING, 
-	SUM(rating) AS RATING_SUM_EXCLUSING,
-	AVG(rating) AS RATING_AVG_EXCLUSING
-	FROM public.reviews
-	WHERE customer_id != 2
-	GROUP BY apartment_id 
-) AS A
-	LEFT JOIN
-	(SELECT customer_id, rating FROM public.reviews)
-	ON apartment_id = apartment_id
-    WHERE RATING_SUM_EXCLUSING != 0
-)
-WHERE customer_id = 2
-GROUP BY customer_id
-) AS C , public.reviews
-WHERE C.customer_id != public.reviews.customer_id
-) AS D
-GROUP BY apartment_id, AVG_DIST_RATIO
-"""
-    pass
+    _query = sql.SQL(
+        f"""
+        SELECT * FROM
+    Apartment INNER JOIN 
+    (
+    SELECT apartment_id, AVG(ratio_rated) FROM
+    (
+        SELECT *, rating, LEAST(GREATEST(rating*ratio_from_user, 1),10) as ratio_rated, apartment_id as hid FROM
+        (
+            Reviews
+            LEFT JOIN
+            (
+                SELECT c1, c2, AVG(ratio) as ratio_from_user FROM
+                    (
+                        SELECT r1.customer_id as c1, r2.customer_id as c2, r1.rating as c1_rate, r2.rating as c2_rate, CAST(r1.rating AS FLOAT) / CAST(r2.rating AS FLOAT) AS ratio , r1.* , r2.* FROM reviews as r1  LEFT OUTER JOIN reviews as r2 On r1.customer_id != r2.customer_id AND r1.apartment_id = r2.apartment_id WHERE r2.customer_id IS NOT NULL AND r1.customer_id = {{CID}} ORDER BY r1.apartment_id
+                    )
+                GROUP BY c1, c2
+            )
+            ON c2=customer_id
+        )
+    )
+    WHERE NOT EXISTS (SELECT * FROM Reviews WHERE Reviews.customer_id = {{CID}} AND hid=Reviews.apartment_id)
+    GROUP BY apartment_id
+    )
+    ON id=apartment_id
+    ORDER BY id
+    """
+    ).format(
+        CID=sql.Literal(customer_id)
+    )
+
+    try:
+        rows_effected, result = _get(_query)
+    except _Ex as e:
+        return e.error_code
+
+    return [(_result_to_apartment_obj(r), float(r['avg'])) for r in result]
 
 
 # ---------------------------------- 5.1 Basic Database Functions ----------------------------------
 
 
-ALL_TABLES = [M.Rev.TABLE_NAME, M.Res.TABLE_NAME, M.OwnedBy.TABLE_NAME, M.A.TABLE_NAME, M.C.TABLE_NAME, M.O.TABLE_NAME,
+ALL_TABLES = [M.Rev.TABLE_NAME, M.Res.TABLE_NAME, M.OwnedBy.TABLE_NAME, M.C.TABLE_NAME, M.A.TABLE_NAME, M.O.TABLE_NAME,
               ]
 
-
+ALL_VIEWS = ["ViewAptRating",'ViewPricePerNight', "ViewAptValue", M.RevView.TABLE_NAME]
 def create_tables():
     quries = [
         f"CREATE TABLE {M.O.TABLE_NAME}("  # Owner
@@ -831,29 +840,36 @@ GROUP BY
 
 
 def clear_tables():
-    for table in ALL_TABLES:
+    conn = None
+    try:
         conn = Connector.DBConnector()
-        query = f"DELETE FROM {table} CASCADE"
-        try:
+        for table in ALL_TABLES:
+            query = f"DELETE FROM {table}"
             conn.execute(query)
-        except Exception as e:
-            print(e)
-            pass
-        finally:
+    except Exception as e:
+        print(e)
+    finally:
+        if conn:
             conn.close()
 
 
 def drop_tables():
-    for table in ALL_TABLES:
+    conn = None
+    try:
         conn = Connector.DBConnector()
-        query = f"DROP TABLE {table} CASCADE"
-        try:
+        for table in ALL_TABLES:
+            query = f"DROP TABLE {table} CASCADE"
             conn.execute(query)
-        except Exception as e:
-            print(e)
-            pass
-        finally:
+        for v in ALL_VIEWS:
+            query = f"DROP VIEW {v}"
+            conn.execute(query)
+    except Exception as e:
+        print(e)
+    finally:
+        if conn:
             conn.close()
+
+
 
 
 pass

@@ -591,24 +591,24 @@ class TestCRUD(unittest.TestCase):
         self.assertEqual(customer_reviewed_apartment(15, 10, d3, 5, "Eh"), ReturnValue.OK)
         self.assertEqual(customer_reviewed_apartment(15, 11, d3, 1, "Eh"), ReturnValue.OK)
 
-        apt5: float = 6.21481481481481481482
-        apt6: float = 3.79722222222222222223
+        apt5: float = 6.214814814814815
+        apt6: float = 3.7972222222222225
         apt7: float = 10.0000000000000000
         result = get_apartment_recommendation(12)
         self.assertEqual(result, [(Apartment(5, "RA", "Haifa", "ISR", 80), apt5),
                                   (Apartment(6, "RB", "Haifa", "ISR", 80), apt6),
                                   (Apartment(7, "RC", "Akko", "ISR", 80), apt7)])
-        apt9 = 1.31250000000000000000
+        apt9 = 1.3125
         result = get_apartment_recommendation(13)
         self.assertEqual(result, [(Apartment(7, "RC", "Akko", "ISR", 80), apt7),
                                   (Apartment(9, "RE", "Haifa", "Canada", 80), apt9)])
-        apt9 = 1.12500000000000000000
-        apt10 = 8.54166666666666666667
+        apt9 = 1.125
+        apt10 = 8.541666666666666
         result = get_apartment_recommendation(14)
         self.assertEqual(result, [(Apartment(7, "RC", "Akko", "ISR", 80), apt7),
                                   (Apartment(9, "RE", "Haifa", "Canada", 80), apt9),
                                   (Apartment(10, "RF", "Akko", "Canada", 80), apt10)])
-        apt6 = 2.73888888888888888890
+        apt6 = 2.738888888888889
         apt9 = 1.00000000000000000000
         result = get_apartment_recommendation(15)
         self.assertEqual(result, [(Apartment(6, "RB", "Haifa", "ISR", 80), apt6),
