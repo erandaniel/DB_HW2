@@ -342,7 +342,7 @@ def get_owner_apartments(owner_id: int) -> List[Apartment]:
         f"LEFT OUTER JOIN {M.A.TABLE_NAME} ON "
         f"{M.OwnedBy.house_id}={M.A.id} "
         f"WHERE {M.OwnedBy.owner_id}={{ID}} "
-    ).format(ID=sql.Literal(owner_id),)
+    ).format(ID=sql.Literal(owner_id), )
 
     try:
         rows_effected, result = _get(_query)
@@ -372,13 +372,13 @@ def get_apartment_owner(apartment_id: int) -> Owner:
 
 def customer_made_reservation(customer_id: int, apartment_id: int, start_date: date, end_date: date,
                               total_price: float) -> ReturnValue:
-    if customer_id <= 0 or apartment_id <= 0 or total_price <=0:
+    if customer_id <= 0 or apartment_id <= 0 or total_price <= 0:
         return ReturnValue.BAD_PARAMS
 
     _query = sql.SQL(f"INSERT INTO {M.Res.TABLE_NAME} "
-                    f"SELECT {{{M.Res.cid}}}, {{{M.Res.hid}}}, {{{M.Res.start_date}}}, {{{M.Res.end_date}}}, {{{M.Res.total_price}}} "
-                    f"WHERE NOT EXISTS (SELECT 1 FROM {M.Res.TABLE_NAME} AS Res WHERE {{{M.Res.hid}}} = Res.{M.Res.hid} AND "
-                    f"({{{M.Res.start_date}}}, {{{M.Res.end_date}}}) OVERLAPS (Res.{M.Res.start_date}, Res.{M.Res.end_date}))").format(
+                     f"SELECT {{{M.Res.cid}}}, {{{M.Res.hid}}}, {{{M.Res.start_date}}}, {{{M.Res.end_date}}}, {{{M.Res.total_price}}} "
+                     f"WHERE NOT EXISTS (SELECT 1 FROM {M.Res.TABLE_NAME} AS Res WHERE {{{M.Res.hid}}} = Res.{M.Res.hid} AND "
+                     f"({{{M.Res.start_date}}}, {{{M.Res.end_date}}}) OVERLAPS (Res.{M.Res.start_date}, Res.{M.Res.end_date}))").format(
         customer_id=sql.Literal(customer_id),
         apartment_id=sql.Literal(apartment_id),
         start_date=sql.Literal(start_date),
@@ -444,7 +444,6 @@ def customer_reviewed_apartment(customer_id: int, apartment_id: int, review_date
 
 def customer_updated_review(customer_id: int, apartment_id: int, update_date: date, new_rating: int,
                             new_text: str) -> ReturnValue:
-
     if customer_id <= 0 or apartment_id <= 0 or new_rating < 1 or new_rating > 10:
         return ReturnValue.BAD_PARAMS
 
@@ -474,13 +473,13 @@ def reservations_per_owner() -> List[Tuple[str, int]]:
         f"SELECT {M.O.TABLE_NAME}.{M.O.name}, {M.O.TABLE_NAME}.{M.O.id}, COUNT ({M.Res.TABLE_NAME}.{M.Res.total_price}) as res_count"
 
         f" FROM {M.O.TABLE_NAME} "
-        
+
         f" LEFT OUTER JOIN {M.OwnedBy.TABLE_NAME} "
         f" ON {M.OwnedBy.TABLE_NAME}.{M.OwnedBy.owner_id} = {M.O.TABLE_NAME}.{M.O.id} "
 
         f" LEFT OUTER JOIN {M.Res.TABLE_NAME} "
         f" ON {M.Res.TABLE_NAME}.{M.Res.hid} = {M.OwnedBy.TABLE_NAME}.{M.OwnedBy.house_id} "
-        
+
 
         f" GROUP BY {M.O.TABLE_NAME}.{M.O.id}, {M.O.TABLE_NAME}.{M.O.name}"
     )
@@ -516,11 +515,31 @@ def get_top_customer() -> Customer:
 
 
 def profit_per_month(year: int) -> List[Tuple[int, float]]:
+    # we will add a dummy res with price of 0 for all houses it won't affect apt with res
     _query = sql.SQL(
-        f"SELECT {M.Res.hid}, (SUM({M.Res.total_price})/12)*0.15 as profit"
-        f" FROM {M.Res.TABLE_NAME}"
-        f" WHERE EXTRACT(YEAR FROM {M.Res.end_date}) = {{YEAR}}"
-        f" GROUP BY {M.Res.hid}").format(
+        f'''
+SELECT EXTRACT(MONTH FROM end_date) as month, (SUM(total_price))*0.15 as profit FROM ( 
+	
+SELECT * FROM Reservations WHERE EXTRACT(YEAR FROM end_date) = {{YEAR}}
+UNION
+(
+SELECT   Reservations.customer_id, 
+	     Apartment.ID as apartment_id,
+		  Reservations.start_date, 
+	      Reservations.end_date, 
+		  Reservations.total_price
+		  FROM 
+		  Apartment 
+		 ,
+( SELECT  0 AS customer_id,  DATE('{{YEAR}}-01-01') AS start_date,
+generate_series(DATE '{{YEAR}}-01-30', DATE '{{YEAR}}-12-30', interval '1 month') AS end_date,
+ 0 AS total_price) as Reservations
+)
+	
+) GROUP BY EXTRACT(MONTH FROM end_date) 
+ORDER BY EXTRACT(MONTH FROM end_date) 
+'''
+    ).format(
         YEAR=sql.Literal(year),
     )
 
@@ -529,7 +548,7 @@ def profit_per_month(year: int) -> List[Tuple[int, float]]:
     except _Ex as e:
         return e.error_code
 
-    return [(r[M.Res.hid], r['profit']) for r in result]
+    return [(r['month'], r['profit']) for r in result]
 
 
 def get_all_location_owners() -> List[Owner]:
@@ -541,7 +560,7 @@ def get_all_location_owners() -> List[Owner]:
         SELECT owner_id, name, COUNT(owner_id) as a FROM
         (SELECT DISTINCT city, country  FROM public.apartment GROUP BY city, country) AS A
         LEFT OUTER JOIN apartment
-        ON apartment.city = A.city
+        ON apartment.city = A.city AND apartment.country = A.country
         LEFT OUTER JOIN Ownedby
         ON id = Ownedby.apartment_id
         LEFT OUTER JOIN owner 
@@ -551,6 +570,7 @@ def get_all_location_owners() -> List[Owner]:
         WHERE a = (SELECT COUNT(*) FROM (
         SELECT DISTINCT city, country  FROM public.apartment GROUP BY city, country 
             ))
+        ORDER BY ownerid
         """
     )
 
@@ -593,7 +613,6 @@ def get_apartment_rating(apartment_id: int) -> float:
 
     # must use view (the same view as get_owner_rating and get_apartment_rating)
 
-
     _query = sql.SQL(
         f"SELECT AVG({M.RevView.rating}) as avg_rating"
         f" FROM {M.RevView.TABLE_NAME}"
@@ -629,7 +648,7 @@ def get_owner_rating(owner_id: int) -> float:
         f" )").format(
         OID=sql.Literal(owner_id)
     )
-        
+
     try:
         rows_effected, result = _get(_query)
     except _Ex as e:
@@ -684,7 +703,7 @@ ALL_TABLES = [M.A.TABLE_NAME, M.C.TABLE_NAME, M.O.TABLE_NAME, M.OwnedBy.TABLE_NA
 
 def create_tables():
     quries = [
-        f"CREATE TABLE {M.O.TABLE_NAME}(" #Owner
+        f"CREATE TABLE {M.O.TABLE_NAME}("  # Owner
         f"{M.O.id} INTEGER PRIMARY KEY CHECK ({M.O.id} > 0),"
         f" {M.O.name} TEXT NOT NULL)"
         ,
