@@ -272,7 +272,6 @@ class TestCRUD(unittest.TestCase):
 
         print("// ==== test_owner_apartment: SUCCESS! ==== //")
 
-    # TODO: X
     def test_BASIC_API(self):
         print("Running Test: test_BASIC_API...")
         reservationsPerOwner = reservations_per_owner()

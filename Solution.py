@@ -620,17 +620,16 @@ def get_owner_rating(owner_id: int) -> float:
         return 0
 
     _query = sql.SQL(
-        f" SELECT COALESCE(AVG(avg_house_rating),0) as avg_owner_rating FROM"
-        f" ("
-        f" SELECT {M.RevView.house_id}, {M.RevView.owner_id}, AVG({M.RevView.rating}) as avg_house_rating"
-        f" FROM {M.RevView.TABLE_NAME}"
-        f" WHERE {M.RevView.owner_id} = {{OID}}"
-        f" GROUP BY {M.RevView.house_id}, {M.RevView.owner_id}"
-        f" )"
-        f" GROUP BY owner_id").format(
+        f" SELECT COALESCE(AVG(average),0) as avg_owner_rating "
+        f" FROM ViewAptRating "
+        f" WHERE EXISTS ("
+        f" SELECT 1 FROM {M.OwnedBy.TABLE_NAME} WHERE "
+        f" {M.OwnedBy.TABLE_NAME}.{M.OwnedBy.house_id}=ViewAptRating.{M.OwnedBy.house_id} "
+        f" AND {M.OwnedBy.TABLE_NAME}.{M.OwnedBy.owner_id}={{OID}}"
+        f" )").format(
         OID=sql.Literal(owner_id)
     )
-
+        
     try:
         rows_effected, result = _get(_query)
     except _Ex as e:
@@ -740,6 +739,14 @@ def create_tables():
         f" FROM {M.Rev.TABLE_NAME}"
         f" LEFT OUTER JOIN {M.OwnedBy.TABLE_NAME}"
         f" ON {M.Rev.TABLE_NAME}.{M.Rev.hid} = {M.OwnedBy.TABLE_NAME}.{M.OwnedBy.house_id} ",
+
+        f"CREATE VIEW ViewAptRating "
+        f" AS"
+        f" SELECT {M.OwnedBy.TABLE_NAME}.{M.OwnedBy.owner_id}, {M.OwnedBy.TABLE_NAME}.{M.OwnedBy.house_id}, AVG(COALESCE(rating, 0)) AS average"
+        f" FROM {M.OwnedBy.TABLE_NAME}"
+        f" LEFT OUTER JOIN {M.Rev.TABLE_NAME}"
+        f" ON {M.Rev.TABLE_NAME}.{M.Rev.hid} = {M.OwnedBy.TABLE_NAME}.{M.OwnedBy.house_id} "
+        f" GROUP BY {M.OwnedBy.TABLE_NAME}.{M.OwnedBy.house_id}",
 
         # TODO: add contains for all tables
         # TODO: make sure the review date is after reservation have ended
