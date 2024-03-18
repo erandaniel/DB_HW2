@@ -116,6 +116,7 @@ def _update(_query):
     rows_updated, _ = _insert(_query)
     if not rows_updated:
         raise _Ex(ReturnValue.NOT_EXISTS)
+    return rows_updated, _
 
 
 def _delete(query):
@@ -155,11 +156,11 @@ def _result_to_customer_obj(result: Connector.ResultSet) -> Customer:
 
 def _result_to_apartment_obj(result: Connector.ResultSet) -> Apartment:
     return Apartment(
-        id=result[0][M.A.id],
-        address=result[0][M.A.address],
-        city=result[0][M.A.city],
-        country=result[0][M.A.country],
-        size=result[0][M.A.size]
+        id=result[M.A.id],
+        address=result[M.A.address],
+        city=result[M.A.city],
+        country=result[M.A.country],
+        size=result[M.A.size]
     )
 
 
@@ -240,7 +241,7 @@ def get_apartment(apartment_id: int) -> Apartment:
     if not rows_effected:
         return Apartment.bad_apartment()
 
-    return _result_to_apartment_obj(result)
+    return _result_to_apartment_obj(result[0])
 
 
 def delete_apartment(apartment_id: int) -> ReturnValue:
@@ -319,7 +320,10 @@ def owner_owns_apartment(owner_id: int, apartment_id: int) -> ReturnValue:
     return ReturnValue.OK
 
 
-def owner_doesnt_own_apartment(owner_id: int, apartment_id: int) -> ReturnValue:
+def owner_drops_apartment(owner_id: int, apartment_id: int) -> ReturnValue:
+    if owner_id <= 0 or apartment_id <= 0:
+        return ReturnValue.BAD_PARAMS
+
     _query = sql.SQL(
         f"DELETE FROM {M.OwnedBy.TABLE_NAME} WHERE {M.OwnedBy.owner_id}={{OWNER_ID}} AND {M.OwnedBy.house_id}={{HOUSE_ID}}").format(
         OWNER_ID=sql.Literal(owner_id),
@@ -334,9 +338,11 @@ def owner_doesnt_own_apartment(owner_id: int, apartment_id: int) -> ReturnValue:
 
 def get_owner_apartments(owner_id: int) -> List[Apartment]:
     _query = sql.SQL(
-        f"SELECT * FROM {M.OwnedBy.TABLE_NAME} LEFT OUTER JOIN {M.O.TABLE_NAME} ON {M.OwnedBy.owner_id} = {M.O.id} WHERE {M.OwnedBy.owner_id}={{ID}}").format(
-        ID=sql.Literal(owner_id),
-    )
+        f"SELECT * FROM {M.OwnedBy.TABLE_NAME} "
+        f"LEFT OUTER JOIN {M.A.TABLE_NAME} ON "
+        f"{M.OwnedBy.house_id}={M.A.id} "
+        f"WHERE {M.OwnedBy.owner_id}={{ID}} "
+    ).format(ID=sql.Literal(owner_id),)
 
     try:
         rows_effected, result = _get(_query)
@@ -387,6 +393,9 @@ def customer_made_reservation(customer_id: int, apartment_id: int, start_date: d
 
 
 def customer_cancelled_reservation(customer_id: int, apartment_id: int, start_date: date) -> ReturnValue:
+    if customer_id <= 0 or apartment_id <= 0:
+        return ReturnValue.BAD_PARAMS
+
     _query = sql.SQL(
         f"DELETE FROM {M.Res.TABLE_NAME} WHERE {M.Res.cid}={{CID}} AND {M.Res.hid}={{HID}} AND {M.Res.start_date}={{START_DATE}}"
     ).format(
@@ -406,37 +415,46 @@ def customer_reviewed_apartment(customer_id: int, apartment_id: int, review_date
                                 review_text: str) -> ReturnValue:
     if customer_id <= 0 or apartment_id <= 0 or rating < 1 or rating > 10:
         return ReturnValue.BAD_PARAMS
-    _query = sql.SQL(f"INSERT INTO {M.Rev.TABLE_NAME} "
-        f"SELECT {{{M.Rev.cid}}}, {{{M.Rev.hid}}}, {{{M.Rev.review_date}}}, {{{M.Rev.rating}}}, {{{M.Rev.review_text}}} "
+
+    _query = sql.SQL(
+        f"INSERT INTO {M.Rev.TABLE_NAME} "
+        f"SELECT {{cid}}, {{hid}}, {{DATE}}, {{RATING}}, {{TEXT}} "
         f"WHERE EXISTS (SELECT 1 FROM {M.Res.TABLE_NAME} AS Res "
-        f"WHERE{{{M.Rev.hid}}} = Res.{M.Res.hid} AND Res.{M.Res.end_date} <= {{{M.Rev.review_date}}} AND {{{M.Rev.cid}}} = Res.{M.Res.cid} )"
+        f"WHERE {M.Rev.hid} = {{hid}} "
+        f"AND Res.{M.Res.end_date} <= {{DATE}} "
+        f"AND {M.Rev.cid} = {{cid}} )"
     ).format(
         cid=sql.Literal(customer_id),
         hid=sql.Literal(apartment_id),
         DATE=sql.Literal(review_date),
         RATING=sql.Literal(rating),
         TEXT=sql.Literal(review_text)
-
-
     )
 
-
-
     try:
-        _insert(_query)
+        _rows_effected, _ = _insert(_query)
     except _Ex as e:
         return e.error_code
+
+    if not _rows_effected:
+        return ReturnValue.NOT_EXISTS
+
     return ReturnValue.OK
 
 
 def customer_updated_review(customer_id: int, apartment_id: int, update_date: date, new_rating: int,
                             new_text: str) -> ReturnValue:
+
+    if customer_id <= 0 or apartment_id <= 0 or new_rating < 1 or new_rating > 10:
+        return ReturnValue.BAD_PARAMS
+
     _query = sql.SQL(
-        f"UPDATE {M.Rev.TABLE_NAME} SET "
+        f"UPDATE {M.Rev.TABLE_NAME} "
+        f" SET "
         f" {M.Rev.rating}={{RATING}},"
         f" {M.Rev.review_text}={{TEXT}},"
         f" {M.Rev.review_date}={{DATE}}"  # TODO: do we need to update time or override? and constrain update date > date 
-        f" WHERE {M.Rev.cid}={{CID}} AND {M.Rev.hid}={{HID}}"
+        f" WHERE {M.Rev.cid}={{CID}} AND {M.Rev.hid}={{HID}} AND {M.Rev.review_date} <= {{DATE}}"
     ).format(
         CID=sql.Literal(customer_id),
         HID=sql.Literal(apartment_id),
@@ -564,7 +582,7 @@ def best_value_for_money() -> Apartment:
     except _Ex as e:
         return e.error_code
 
-    return _result_to_apartment_obj(result)
+    return _result_to_apartment_obj(result[0])
 
 
 def get_apartment_rating(apartment_id: int) -> float:
