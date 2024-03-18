@@ -359,7 +359,7 @@ class TestCRUD(unittest.TestCase):
         self.assertEqual(get_apartment_rating(10), 0)
         self.assertEqual(get_apartment_rating(11), 0)
         self.assertEqual(get_owner_rating(1), 8)
-        self.assertEqual(get_owner_rating(2), 5)
+        self.assertEqual(get_owner_rating(2), 5) # house with no review = house with rating of 0?
         self.assertEqual(get_owner_rating(3), 0)
         self.assertEqual(get_owner_rating(4), 0)
         self.assertEqual(get_top_customer(), Customer(12, "CA"))

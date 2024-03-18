@@ -471,16 +471,18 @@ def customer_updated_review(customer_id: int, apartment_id: int, update_date: da
 
 def reservations_per_owner() -> List[Tuple[str, int]]:
     _query = sql.SQL(
-        f"SELECT {M.O.TABLE_NAME}.{M.O.name}, COUNT ({M.O.id})"
+        f"SELECT {M.O.TABLE_NAME}.{M.O.name}, {M.O.TABLE_NAME}.{M.O.id}, COUNT ({M.Res.TABLE_NAME}.{M.Res.total_price}) as res_count"
 
-        f" FROM {M.Res.TABLE_NAME} "
-        f" INNER JOIN {M.OwnedBy.TABLE_NAME} "
-        f" ON {M.Res.TABLE_NAME}.{M.Res.hid} = {M.OwnedBy.TABLE_NAME}.{M.OwnedBy.house_id} "
-
-        f" LEFT OUTER JOIN {M.O.TABLE_NAME} "
+        f" FROM {M.O.TABLE_NAME} "
+        
+        f" LEFT OUTER JOIN {M.OwnedBy.TABLE_NAME} "
         f" ON {M.OwnedBy.TABLE_NAME}.{M.OwnedBy.owner_id} = {M.O.TABLE_NAME}.{M.O.id} "
 
-        f" GROUP BY {M.OwnedBy.owner_id}, {M.O.TABLE_NAME}.{M.O.name}"
+        f" LEFT OUTER JOIN {M.Res.TABLE_NAME} "
+        f" ON {M.Res.TABLE_NAME}.{M.Res.hid} = {M.OwnedBy.TABLE_NAME}.{M.OwnedBy.house_id} "
+        
+
+        f" GROUP BY {M.O.TABLE_NAME}.{M.O.id}, {M.O.TABLE_NAME}.{M.O.name}"
     )
 
     try:
@@ -488,7 +490,7 @@ def reservations_per_owner() -> List[Tuple[str, int]]:
     except _Ex as e:
         return e.error_code
 
-    return [(r[M.C.name], r['count']) for r in result]
+    return [(r[M.C.name], r['res_count']) for r in result]
 
 
 def get_top_customer() -> Customer:
@@ -556,7 +558,7 @@ def get_all_location_owners() -> List[Owner]:
         rows_effected, result = _get(_query)
     except _Ex as e:
         return e.error_code
-    return [_result_to_owner_obj(r) for r in result]
+    return [_result_to_owner_obj([r]) for r in result]
 
 
 def best_value_for_money() -> Apartment:
@@ -586,7 +588,11 @@ def best_value_for_money() -> Apartment:
 
 
 def get_apartment_rating(apartment_id: int) -> float:
+    if apartment_id <= 0:
+        return 0
+
     # must use view (the same view as get_owner_rating and get_apartment_rating)
+
 
     _query = sql.SQL(
         f"SELECT AVG({M.RevView.rating}) as avg_rating"
@@ -609,8 +615,12 @@ def get_apartment_rating(apartment_id: int) -> float:
 
 def get_owner_rating(owner_id: int) -> float:
     # must use view (the same view as get_owner_rating and get_apartment_rating)
+
+    if owner_id <= 0:
+        return 0
+
     _query = sql.SQL(
-        f" SELECT AVG(avg_house_rating) as avg_owner_rating FROM"
+        f" SELECT COALESCE(AVG(avg_house_rating),0) as avg_owner_rating FROM"
         f" ("
         f" SELECT {M.RevView.house_id}, {M.RevView.owner_id}, AVG({M.RevView.rating}) as avg_house_rating"
         f" FROM {M.RevView.TABLE_NAME}"
